@@ -149,37 +149,39 @@ const MapPage = () => {
               zoom={15}
               style={{ height: "100%", width: "100%" }}
             >
-              <TileLayer
-                attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
-                url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
-              />
-              <AddTreeMarker
-                onLocationSelect={(lat, lng) => {
-                  setNewTree({ ...newTree, latitude: lat, longitude: lng });
-                  setIsDialogOpen(true);
-                }}
-              />
-              {trees.map((tree) => (
-                <Marker key={tree.id} position={[tree.latitude, tree.longitude]}>
-                  <Popup>
-                    <div className="p-2">
-                      <h3 className="font-semibold flex items-center gap-2">
-                        <Leaf className="w-4 h-4 text-secondary" />
-                        {tree.species || "Tree"}
-                      </h3>
-                      <p className="text-sm text-muted-foreground mt-1">
-                        Planted by: {tree.profiles.full_name}
-                      </p>
-                      <p className="text-xs text-muted-foreground">
-                        Date: {new Date(tree.planted_date).toLocaleDateString()}
-                      </p>
-                      {tree.notes && (
-                        <p className="text-sm mt-2">{tree.notes}</p>
-                      )}
-                    </div>
-                  </Popup>
-                </Marker>
-              ))}
+              <>
+                <TileLayer
+                  attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
+                  url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
+                />
+                <AddTreeMarker
+                  onLocationSelect={(lat, lng) => {
+                    setNewTree({ ...newTree, latitude: lat, longitude: lng });
+                    setIsDialogOpen(true);
+                  }}
+                />
+                {trees.map((tree) => (
+                  <Marker key={tree.id} position={[tree.latitude, tree.longitude]}>
+                    <Popup>
+                      <div className="p-2">
+                        <h3 className="font-semibold flex items-center gap-2">
+                          <Leaf className="w-4 h-4 text-secondary" />
+                          {tree.species || "Tree"}
+                        </h3>
+                        <p className="text-sm text-muted-foreground mt-1">
+                          Planted by: {tree.profiles.full_name}
+                        </p>
+                        <p className="text-xs text-muted-foreground">
+                          Date: {new Date(tree.planted_date).toLocaleDateString()}
+                        </p>
+                        {tree.notes && (
+                          <p className="text-sm mt-2">{tree.notes}</p>
+                        )}
+                      </div>
+                    </Popup>
+                  </Marker>
+                ))}
+              </>
             </MapContainer>
           </div>
         </Card>
