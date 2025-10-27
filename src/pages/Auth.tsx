@@ -44,7 +44,7 @@ const Auth = () => {
 
     try {
       if (isSignUp) {
-        const { error } = await supabase.auth.signUp({
+        const { data, error } = await supabase.auth.signUp({
           email,
           password,
           options: {
@@ -62,19 +62,24 @@ const Auth = () => {
             toast.error(error.message);
           }
         } else {
-          toast.success("Account created! You can now sign in.");
-          setIsSignUp(false);
+          toast.success("Account created successfully! Redirecting...");
+          // Session will be automatically handled by onAuthStateChange
         }
       } else {
-        const { error } = await supabase.auth.signInWithPassword({
+        const { data, error } = await supabase.auth.signInWithPassword({
           email,
           password,
         });
 
         if (error) {
-          toast.error(error.message);
+          if (error.message.includes("Invalid login credentials")) {
+            toast.error("Invalid email or password. Please try again.");
+          } else {
+            toast.error(error.message);
+          }
         } else {
           toast.success("Welcome back!");
+          // Session will be automatically handled by onAuthStateChange
         }
       }
     } catch (error: any) {
