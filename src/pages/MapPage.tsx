@@ -1,8 +1,8 @@
-import { useEffect, useState } from "react";
-import { MapContainer, TileLayer, Marker, Popup, useMapEvents } from "react-leaflet";
+import { useEffect, useState, useRef } from "react";
+import Map, { Marker, Popup } from "react-map-gl";
 import { Layout } from "@/components/Layout";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
@@ -11,17 +11,8 @@ import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import { Session } from "@supabase/supabase-js";
 import { useNavigate } from "react-router-dom";
-import { Leaf, Plus } from "lucide-react";
-import "leaflet/dist/leaflet.css";
-import L from "leaflet";
-
-// Fix for default marker icons in React-Leaflet
-delete (L.Icon.Default.prototype as any)._getIconUrl;
-L.Icon.Default.mergeOptions({
-  iconRetinaUrl: "https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.7.1/images/marker-icon-2x.png",
-  iconUrl: "https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.7.1/images/marker-icon.png",
-  shadowUrl: "https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.7.1/images/marker-shadow.png",
-});
+import { Leaf, Plus, MapPin } from "lucide-react";
+import "mapbox-gl/dist/mapbox-gl.css";
 
 interface Tree {
   id: string;
@@ -35,19 +26,13 @@ interface Tree {
   };
 }
 
-const AddTreeMarker = ({ onLocationSelect }: { onLocationSelect: (lat: number, lng: number) => void }) => {
-  useMapEvents({
-    click(e) {
-      onLocationSelect(e.latlng.lat, e.latlng.lng);
-    },
-  });
-  return null;
-};
+const MAPBOX_TOKEN = "pk.eyJ1IjoibG92YWJsZS1kZXYiLCJhIjoiY20ycG94Ymk2MDd6cTJsc2F4eWR3ZjA3ZyJ9.VWgtkK7w0Ddc-rjvfAp6lg";
 
 const MapPage = () => {
   const [session, setSession] = useState<Session | null>(null);
   const [trees, setTrees] = useState<Tree[]>([]);
   const [isDialogOpen, setIsDialogOpen] = useState(false);
+  const [selectedTreeId, setSelectedTreeId] = useState<string | null>(null);
   const [newTree, setNewTree] = useState({
     latitude: 0.3476,
     longitude: 32.6056,
@@ -55,9 +40,8 @@ const MapPage = () => {
     notes: "",
   });
   const navigate = useNavigate();
-  const [mounted, setMounted] = useState(false);
+  const mapRef = useRef<any>(null);
   useEffect(() => {
-    setMounted(true);
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
       (event, session) => {
         setSession(session);
@@ -152,47 +136,72 @@ const MapPage = () => {
 
         <Card className="shadow-card overflow-hidden">
           <div className="h-[600px] w-full">
-            {mounted ? (
-              <MapContainer
-                center={[0.3476, 32.6056]}
-                zoom={15}
-                style={{ height: "100%", width: "100%" }}
-              >
-                <TileLayer
-                  attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
-                  url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
-                />
-                <AddTreeMarker
-                  onLocationSelect={(lat, lng) => {
-                    setNewTree({ ...newTree, latitude: lat, longitude: lng });
-                    setIsDialogOpen(true);
+            <Map
+              ref={mapRef}
+              mapboxAccessToken={MAPBOX_TOKEN}
+              initialViewState={{
+                longitude: 32.6056,
+                latitude: 0.3476,
+                zoom: 15
+              }}
+              style={{ width: "100%", height: "100%" }}
+              mapStyle="mapbox://styles/mapbox/streets-v12"
+              onClick={(e) => {
+                setNewTree({ 
+                  ...newTree, 
+                  latitude: e.lngLat.lat, 
+                  longitude: e.lngLat.lng 
+                });
+                setIsDialogOpen(true);
+              }}
+            >
+              {trees.map((tree) => (
+                <Marker
+                  key={tree.id}
+                  longitude={tree.longitude}
+                  latitude={tree.latitude}
+                  anchor="bottom"
+                  onClick={(e) => {
+                    e.originalEvent.stopPropagation();
+                    setSelectedTreeId(tree.id);
                   }}
-                />
-                {trees.map((tree) => (
-                  <Marker key={tree.id} position={[tree.latitude, tree.longitude]}>
-                    <Popup>
-                      <div className="p-2">
-                        <h3 className="font-semibold flex items-center gap-2">
-                          <Leaf className="w-4 h-4 text-secondary" />
-                          {tree.species || "Tree"}
-                        </h3>
-                        <p className="text-sm text-muted-foreground mt-1">
-                          Planted by: {tree.profiles.full_name}
-                        </p>
-                        <p className="text-xs text-muted-foreground">
-                          Date: {new Date(tree.planted_date).toLocaleDateString()}
-                        </p>
-                        {tree.notes && (
-                          <p className="text-sm mt-2">{tree.notes}</p>
-                        )}
-                      </div>
-                    </Popup>
-                  </Marker>
-                ))}
-              </MapContainer>
-            ) : (
-              <div className="h-full w-full animate-pulse bg-muted" />
-            )}
+                >
+                  <div className="cursor-pointer">
+                    <MapPin className="w-8 h-8 text-primary drop-shadow-lg" fill="currentColor" />
+                  </div>
+                </Marker>
+              ))}
+
+              {selectedTreeId && (() => {
+                const tree = trees.find(t => t.id === selectedTreeId);
+                if (!tree) return null;
+                return (
+                  <Popup
+                    longitude={tree.longitude}
+                    latitude={tree.latitude}
+                    anchor="top"
+                    onClose={() => setSelectedTreeId(null)}
+                    closeOnClick={false}
+                  >
+                    <div className="p-2 min-w-[200px]">
+                      <h3 className="font-semibold flex items-center gap-2">
+                        <Leaf className="w-4 h-4 text-primary" />
+                        {tree.species || "Tree"}
+                      </h3>
+                      <p className="text-sm text-muted-foreground mt-1">
+                        Planted by: {tree.profiles.full_name}
+                      </p>
+                      <p className="text-xs text-muted-foreground">
+                        Date: {new Date(tree.planted_date).toLocaleDateString()}
+                      </p>
+                      {tree.notes && (
+                        <p className="text-sm mt-2">{tree.notes}</p>
+                      )}
+                    </div>
+                  </Popup>
+                );
+              })()}
+            </Map>
           </div>
         </Card>
 
