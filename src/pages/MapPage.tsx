@@ -1,5 +1,5 @@
 import { useEffect, useState, useRef } from "react";
-import Map, { Marker, Popup } from "react-map-gl";
+import mapboxgl from "mapbox-gl";
 import { Layout } from "@/components/Layout";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
@@ -11,7 +11,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import { Session } from "@supabase/supabase-js";
 import { useNavigate } from "react-router-dom";
-import { Leaf, Plus, MapPin } from "lucide-react";
+import { Leaf, Plus } from "lucide-react";
 import "mapbox-gl/dist/mapbox-gl.css";
 
 interface Tree {
@@ -40,7 +40,9 @@ const MapPage = () => {
     notes: "",
   });
   const navigate = useNavigate();
-  const mapRef = useRef<any>(null);
+  const mapContainerRef = useRef<HTMLDivElement | null>(null);
+  const mapInstanceRef = useRef<mapboxgl.Map | null>(null);
+  const markersRef = useRef<mapboxgl.Marker[]>([]);
   useEffect(() => {
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
       (event, session) => {
@@ -67,6 +69,37 @@ const MapPage = () => {
     }
   }, [session]);
 
+  // Initialize Mapbox map
+  useEffect(() => {
+    if (!mapContainerRef.current || mapInstanceRef.current) return;
+    mapboxgl.accessToken = MAPBOX_TOKEN;
+
+    const map = new mapboxgl.Map({
+      container: mapContainerRef.current,
+      style: "mapbox://styles/mapbox/streets-v12",
+      center: [32.6056, 0.3476],
+      zoom: 15,
+    });
+
+    map.addControl(new mapboxgl.NavigationControl({ visualizePitch: true }), "top-right");
+
+    map.on("click", (e) => {
+      setNewTree({
+        ...newTree,
+        latitude: e.lngLat.lat,
+        longitude: e.lngLat.lng,
+      });
+      setIsDialogOpen(true);
+    });
+
+    mapInstanceRef.current = map;
+
+    return () => {
+      map.remove();
+      mapInstanceRef.current = null;
+    };
+  }, []);
+
   const fetchTrees = async () => {
     const { data, error } = await supabase
       .from("trees")
@@ -82,6 +115,42 @@ const MapPage = () => {
       setTrees(data as Tree[]);
     }
   };
+
+  // Render markers whenever tree data changes
+  useEffect(() => {
+    const map = mapInstanceRef.current;
+    if (!map) return;
+
+    // Clear existing markers
+    markersRef.current.forEach((m) => m.remove());
+    markersRef.current = [];
+
+    trees.forEach((tree) => {
+      const popupHtml = `
+        <div style="min-width:200px;padding:8px;">
+          <div style="font-weight:600;display:flex;align-items:center;gap:6px;">
+            <span>🌿</span> ${tree.species || "Tree"}
+          </div>
+          <div style="font-size:12px;color:#6b7280;margin-top:4px;">Planted by: ${tree.profiles.full_name}</div>
+          <div style="font-size:12px;color:#6b7280;">Date: ${new Date(tree.planted_date).toLocaleDateString()}</div>
+          ${tree.notes ? `<div style="font-size:12px;margin-top:6px;">${tree.notes}</div>` : ""}
+        </div>`;
+
+      const popup = new mapboxgl.Popup({ offset: 24 }).setHTML(popupHtml);
+
+      const marker = new mapboxgl.Marker()
+        .setLngLat([tree.longitude, tree.latitude])
+        .setPopup(popup)
+        .addTo(map);
+
+      marker.getElement().addEventListener("click", (ev) => {
+        ev.stopPropagation();
+        setSelectedTreeId(tree.id);
+      });
+
+      markersRef.current.push(marker);
+    });
+  }, [trees]);
 
   const handleAddTree = async () => {
     if (!session?.user) return;
@@ -136,72 +205,9 @@ const MapPage = () => {
 
         <Card className="shadow-card overflow-hidden">
           <div className="h-[600px] w-full">
-            <Map
-              ref={mapRef}
-              mapboxAccessToken={MAPBOX_TOKEN}
-              initialViewState={{
-                longitude: 32.6056,
-                latitude: 0.3476,
-                zoom: 15
-              }}
-              style={{ width: "100%", height: "100%" }}
-              mapStyle="mapbox://styles/mapbox/streets-v12"
-              onClick={(e) => {
-                setNewTree({ 
-                  ...newTree, 
-                  latitude: e.lngLat.lat, 
-                  longitude: e.lngLat.lng 
-                });
-                setIsDialogOpen(true);
-              }}
-            >
-              {trees.map((tree) => (
-                <Marker
-                  key={tree.id}
-                  longitude={tree.longitude}
-                  latitude={tree.latitude}
-                  anchor="bottom"
-                  onClick={(e) => {
-                    e.originalEvent.stopPropagation();
-                    setSelectedTreeId(tree.id);
-                  }}
-                >
-                  <div className="cursor-pointer">
-                    <MapPin className="w-8 h-8 text-primary drop-shadow-lg" fill="currentColor" />
-                  </div>
-                </Marker>
-              ))}
-
-              {selectedTreeId && (() => {
-                const tree = trees.find(t => t.id === selectedTreeId);
-                if (!tree) return null;
-                return (
-                  <Popup
-                    longitude={tree.longitude}
-                    latitude={tree.latitude}
-                    anchor="top"
-                    onClose={() => setSelectedTreeId(null)}
-                    closeOnClick={false}
-                  >
-                    <div className="p-2 min-w-[200px]">
-                      <h3 className="font-semibold flex items-center gap-2">
-                        <Leaf className="w-4 h-4 text-primary" />
-                        {tree.species || "Tree"}
-                      </h3>
-                      <p className="text-sm text-muted-foreground mt-1">
-                        Planted by: {tree.profiles.full_name}
-                      </p>
-                      <p className="text-xs text-muted-foreground">
-                        Date: {new Date(tree.planted_date).toLocaleDateString()}
-                      </p>
-                      {tree.notes && (
-                        <p className="text-sm mt-2">{tree.notes}</p>
-                      )}
-                    </div>
-                  </Popup>
-                );
-              })()}
-            </Map>
+            <div className="h-[600px] w-full">
+              <div ref={mapContainerRef} className="h-full w-full rounded-md" />
+            </div>
           </div>
         </Card>
 
