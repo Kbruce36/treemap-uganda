@@ -1,18 +1,18 @@
 import { useEffect, useState, useRef } from "react";
-import mapboxgl from "mapbox-gl";
-import { Layout } from "@/components/Layout";
+import { useNavigate } from "react-router-dom";
+import { supabase } from "@/integrations/supabase/client";
+import { Session } from "@supabase/supabase-js";
 import { Button } from "@/components/ui/button";
-import { Card } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
 import { Textarea } from "@/components/ui/textarea";
-import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog";
-import { supabase } from "@/integrations/supabase/client";
+import { Card } from "@/components/ui/card";
 import { toast } from "sonner";
-import { Session } from "@supabase/supabase-js";
-import { useNavigate } from "react-router-dom";
-import { Leaf, Plus } from "lucide-react";
-import "mapbox-gl/dist/mapbox-gl.css";
+import { Layout } from "@/components/Layout";
+import L from "leaflet";
+import "leaflet/dist/leaflet.css";
+import { Plus, Leaf } from "lucide-react";
 
 interface Tree {
   id: string;
@@ -26,23 +26,22 @@ interface Tree {
   };
 }
 
-const MAPBOX_TOKEN = "pk.eyJ1IjoibG92YWJsZS1kZXYiLCJhIjoiY20ycG94Ymk2MDd6cTJsc2F4eWR3ZjA3ZyJ9.VWgtkK7w0Ddc-rjvfAp6lg";
-
 const MapPage = () => {
   const [session, setSession] = useState<Session | null>(null);
   const [trees, setTrees] = useState<Tree[]>([]);
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [selectedTreeId, setSelectedTreeId] = useState<string | null>(null);
   const [newTree, setNewTree] = useState({
-    latitude: 0.3476,
-    longitude: 32.6056,
     species: "",
     notes: "",
+    latitude: 0.3476,
+    longitude: 32.6056,
   });
   const navigate = useNavigate();
-  const mapContainerRef = useRef<HTMLDivElement | null>(null);
-  const mapInstanceRef = useRef<mapboxgl.Map | null>(null);
-  const markersRef = useRef<mapboxgl.Marker[]>([]);
+  const mapContainerRef = useRef<HTMLDivElement>(null);
+  const mapInstanceRef = useRef<L.Map | null>(null);
+  const markersRef = useRef<L.Marker[]>([]);
+
   useEffect(() => {
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
       (event, session) => {
@@ -69,50 +68,31 @@ const MapPage = () => {
     }
   }, [session]);
 
-  // Initialize Mapbox map
+  // Initialize Leaflet map
   useEffect(() => {
     if (!mapContainerRef.current || mapInstanceRef.current) return;
-    
-    mapboxgl.accessToken = MAPBOX_TOKEN;
 
-    try {
-      const map = new mapboxgl.Map({
-        container: mapContainerRef.current,
-        style: "mapbox://styles/mapbox/streets-v12",
-        center: [32.6056, 0.3476],
-        zoom: 15,
+    const map = L.map(mapContainerRef.current).setView([0.3476, 32.6056], 15);
+
+    L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png", {
+      attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors',
+    }).addTo(map);
+
+    map.on("click", (e) => {
+      setNewTree({
+        ...newTree,
+        latitude: e.latlng.lat,
+        longitude: e.latlng.lng,
       });
+      setIsDialogOpen(true);
+    });
 
-      map.on('load', () => {
-        console.log('Map loaded successfully');
-      });
+    mapInstanceRef.current = map;
 
-      map.on('error', (e) => {
-        console.error('Map error:', e);
-        toast.error('Failed to load map. Please check your internet connection.');
-      });
-
-      map.addControl(new mapboxgl.NavigationControl({ visualizePitch: true }), "top-right");
-
-      map.on("click", (e) => {
-        setNewTree({
-          ...newTree,
-          latitude: e.lngLat.lat,
-          longitude: e.lngLat.lng,
-        });
-        setIsDialogOpen(true);
-      });
-
-      mapInstanceRef.current = map;
-
-      return () => {
-        map.remove();
-        mapInstanceRef.current = null;
-      };
-    } catch (error) {
-      console.error('Failed to initialize map:', error);
-      toast.error('Failed to initialize map');
-    }
+    return () => {
+      map.remove();
+      mapInstanceRef.current = null;
+    };
   }, []);
 
   const fetchTrees = async () => {
@@ -131,38 +111,29 @@ const MapPage = () => {
     }
   };
 
-  // Render markers whenever tree data changes
+  // Render tree markers on the map
   useEffect(() => {
+    if (!mapInstanceRef.current || trees.length === 0) return;
+
     const map = mapInstanceRef.current;
-    if (!map) return;
 
     // Clear existing markers
-    markersRef.current.forEach((m) => m.remove());
+    markersRef.current.forEach(marker => marker.remove());
     markersRef.current = [];
 
+    // Add new markers for each tree
     trees.forEach((tree) => {
-      const popupHtml = `
-        <div style="min-width:200px;padding:8px;">
-          <div style="font-weight:600;display:flex;align-items:center;gap:6px;">
-            <span>🌿</span> ${tree.species || "Tree"}
-          </div>
-          <div style="font-size:12px;color:#6b7280;margin-top:4px;">Planted by: ${tree.profiles.full_name}</div>
-          <div style="font-size:12px;color:#6b7280;">Date: ${new Date(tree.planted_date).toLocaleDateString()}</div>
-          ${tree.notes ? `<div style="font-size:12px;margin-top:6px;">${tree.notes}</div>` : ""}
-        </div>`;
-
-      const popup = new mapboxgl.Popup({ offset: 24 }).setHTML(popupHtml);
-
-      const marker = new mapboxgl.Marker()
-        .setLngLat([tree.longitude, tree.latitude])
-        .setPopup(popup)
-        .addTo(map);
-
-      marker.getElement().addEventListener("click", (ev) => {
-        ev.stopPropagation();
-        setSelectedTreeId(tree.id);
-      });
-
+      const marker = L.marker([tree.latitude, tree.longitude])
+        .addTo(map)
+        .bindPopup(
+          `<div>
+            <h3 style="font-weight: bold; margin-bottom: 4px;">${tree.species || 'Tree'}</h3>
+            <p style="margin: 2px 0;">Planted: ${new Date(tree.planted_date).toLocaleDateString()}</p>
+            <p style="margin: 2px 0;">By: ${tree.profiles?.full_name || 'Unknown'}</p>
+            ${tree.notes ? `<p style="margin: 2px 0;">Notes: ${tree.notes}</p>` : ''}
+          </div>`
+        );
+      
       markersRef.current.push(marker);
     });
   }, [trees]);
@@ -212,18 +183,14 @@ const MapPage = () => {
             <h1 className="text-3xl font-bold mb-2">Interactive Tree Map</h1>
             <p className="text-muted-foreground">Click on the map to plant a tree at Kyambogo University</p>
           </div>
-          <Button variant="hero" size="lg" onClick={() => setIsDialogOpen(true)}>
-            <Plus className="w-5 h-5" />
+          <Button variant="default" size="lg" onClick={() => setIsDialogOpen(true)}>
+            <Plus className="w-5 h-5 mr-2" />
             Plant Tree
           </Button>
         </div>
 
-        <Card className="shadow-card overflow-hidden">
-          <div className="h-[600px] w-full">
-            <div className="h-[600px] w-full">
-              <div ref={mapContainerRef} className="h-full w-full rounded-md" />
-            </div>
-          </div>
+        <Card className="overflow-hidden">
+          <div ref={mapContainerRef} className="h-[600px] w-full" />
         </Card>
 
         <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
@@ -259,8 +226,8 @@ const MapPage = () => {
                   onChange={(e) => setNewTree({ ...newTree, notes: e.target.value })}
                 />
               </div>
-              <Button onClick={handleAddTree} className="w-full" variant="hero" size="lg">
-                <Leaf className="w-4 h-4" />
+              <Button onClick={handleAddTree} className="w-full" size="lg">
+                <Leaf className="w-4 h-4 mr-2" />
                 Plant Tree
               </Button>
             </div>
