@@ -78,6 +78,22 @@ const MapPage = () => {
       attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors',
     }).addTo(map);
 
+    // Try to locate user
+    map.locate({ setView: true, maxZoom: 16 });
+
+    // When location is found
+    map.on('locationfound', (e) => {
+      L.marker(e.latlng).addTo(map)
+        .bindPopup("You are here 🌳<br>Click on the map to plant a tree.")
+        .openPopup();
+      toast.success("Location found! Click anywhere on the map to plant a tree.");
+    });
+
+    // If location fails
+    map.on('locationerror', () => {
+      toast.error("Location access denied. Using default location.");
+    });
+
     map.on("click", (e) => {
       setNewTree({
         ...newTree,
