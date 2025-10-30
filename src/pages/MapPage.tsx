@@ -72,32 +72,47 @@ const MapPage = () => {
   // Initialize Mapbox map
   useEffect(() => {
     if (!mapContainerRef.current || mapInstanceRef.current) return;
+    
     mapboxgl.accessToken = MAPBOX_TOKEN;
 
-    const map = new mapboxgl.Map({
-      container: mapContainerRef.current,
-      style: "mapbox://styles/mapbox/streets-v12",
-      center: [32.6056, 0.3476],
-      zoom: 15,
-    });
-
-    map.addControl(new mapboxgl.NavigationControl({ visualizePitch: true }), "top-right");
-
-    map.on("click", (e) => {
-      setNewTree({
-        ...newTree,
-        latitude: e.lngLat.lat,
-        longitude: e.lngLat.lng,
+    try {
+      const map = new mapboxgl.Map({
+        container: mapContainerRef.current,
+        style: "mapbox://styles/mapbox/streets-v12",
+        center: [32.6056, 0.3476],
+        zoom: 15,
       });
-      setIsDialogOpen(true);
-    });
 
-    mapInstanceRef.current = map;
+      map.on('load', () => {
+        console.log('Map loaded successfully');
+      });
 
-    return () => {
-      map.remove();
-      mapInstanceRef.current = null;
-    };
+      map.on('error', (e) => {
+        console.error('Map error:', e);
+        toast.error('Failed to load map. Please check your internet connection.');
+      });
+
+      map.addControl(new mapboxgl.NavigationControl({ visualizePitch: true }), "top-right");
+
+      map.on("click", (e) => {
+        setNewTree({
+          ...newTree,
+          latitude: e.lngLat.lat,
+          longitude: e.lngLat.lng,
+        });
+        setIsDialogOpen(true);
+      });
+
+      mapInstanceRef.current = map;
+
+      return () => {
+        map.remove();
+        mapInstanceRef.current = null;
+      };
+    } catch (error) {
+      console.error('Failed to initialize map:', error);
+      toast.error('Failed to initialize map');
+    }
   }, []);
 
   const fetchTrees = async () => {
