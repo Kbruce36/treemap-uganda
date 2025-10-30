@@ -72,7 +72,7 @@ const MapPage = () => {
   useEffect(() => {
     if (!mapContainerRef.current || mapInstanceRef.current) return;
 
-    const map = L.map(mapContainerRef.current).setView([0.3476, 32.6056], 15);
+    const map = L.map(mapContainerRef.current).setView([0, 0], 2);
 
     L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png", {
       attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors',
@@ -83,17 +83,29 @@ const MapPage = () => {
 
     // When location is found
     map.on('locationfound', (e) => {
-      L.marker(e.latlng).addTo(map)
-        .bindPopup("You are here 🌳<br>Click on the map to plant a tree.")
+      const marker = L.marker(e.latlng).addTo(map)
+        .bindPopup("You are here 🌳<br>Click to mark tree location.")
         .openPopup();
-      toast.success("Location found! Click anywhere on the map to plant a tree.");
+
+      // Allow user to confirm tree planting by clicking marker
+      marker.on('click', () => {
+        setNewTree({
+          ...newTree,
+          latitude: e.latlng.lat,
+          longitude: e.latlng.lng,
+        });
+        setIsDialogOpen(true);
+      });
+
+      toast.success("Location found! Click the marker or anywhere on the map to plant a tree.");
     });
 
     // If location fails
     map.on('locationerror', () => {
-      toast.error("Location access denied. Using default location.");
+      toast.error("Location access denied or unavailable.");
     });
 
+    // Also allow clicking anywhere on the map
     map.on("click", (e) => {
       setNewTree({
         ...newTree,
