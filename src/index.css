@@ -121,4 +121,10 @@ All colors MUST be HSL.
   .shadow-card {
     box-shadow: var(--shadow-card);
   }
+  
+  /* Leaflet map container fix */
+  .leaflet-container {
+    height: 100%;
+    width: 100%;
+  }
 }
