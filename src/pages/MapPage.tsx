@@ -70,6 +70,7 @@ const MapPage = () => {
 
   // Initialize Leaflet map
   useEffect(() => {
+    if (!session) return;
     if (!mapContainerRef.current || mapInstanceRef.current) return;
 
     const map = L.map(mapContainerRef.current).setView([0, 0], 2);
@@ -77,6 +78,13 @@ const MapPage = () => {
     L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png", {
       attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors',
     }).addTo(map);
+
+    // Ensure proper sizing after mount and on resize
+    const handleResize = () => map.invalidateSize();
+    map.whenReady(() => {
+      setTimeout(() => map.invalidateSize(), 0);
+    });
+    window.addEventListener('resize', handleResize);
 
     // Try to locate user
     map.locate({ setView: true, maxZoom: 16 });
@@ -89,11 +97,11 @@ const MapPage = () => {
 
       // Allow user to confirm tree planting by clicking marker
       marker.on('click', () => {
-        setNewTree({
-          ...newTree,
+        setNewTree((prev) => ({
+          ...prev,
           latitude: e.latlng.lat,
           longitude: e.latlng.lng,
-        });
+        }));
         setIsDialogOpen(true);
       });
 
@@ -107,21 +115,22 @@ const MapPage = () => {
 
     // Also allow clicking anywhere on the map
     map.on("click", (e) => {
-      setNewTree({
-        ...newTree,
+      setNewTree((prev) => ({
+        ...prev,
         latitude: e.latlng.lat,
         longitude: e.latlng.lng,
-      });
+      }));
       setIsDialogOpen(true);
     });
 
     mapInstanceRef.current = map;
 
     return () => {
+      window.removeEventListener('resize', handleResize);
       map.remove();
       mapInstanceRef.current = null;
     };
-  }, []);
+  }, [session]);
 
   const fetchTrees = async () => {
     const { data, error } = await supabase
