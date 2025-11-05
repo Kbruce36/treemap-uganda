@@ -86,11 +86,14 @@ const MapPage = () => {
     });
     window.addEventListener('resize', handleResize);
 
-    // Try to locate user
-    map.locate({ setView: true, maxZoom: 16 });
+    // Try to locate user with high accuracy
+    map.locate({ setView: true, maxZoom: 18, enableHighAccuracy: true });
 
     // When location is found
     map.on('locationfound', (e) => {
+      // Explicitly set view to user location with good zoom
+      map.setView(e.latlng, 18);
+      
       const marker = L.marker(e.latlng).addTo(map)
         .bindPopup("You are here 🌳<br>Click to mark tree location.")
         .openPopup();
