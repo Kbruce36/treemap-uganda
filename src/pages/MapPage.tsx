@@ -124,16 +124,6 @@ const MapPage = () => {
       toast.error("Location access denied or unavailable.");
     });
 
-    // Also allow clicking anywhere on the map
-    map.on("click", (e) => {
-      setNewTree((prev) => ({
-        ...prev,
-        latitude: e.latlng.lat,
-        longitude: e.latlng.lng,
-      }));
-      setIsDialogOpen(true);
-    });
-
     mapInstanceRef.current = map;
 
     return () => {
@@ -229,7 +219,7 @@ const MapPage = () => {
         <div className="mb-6 flex items-center justify-between">
           <div>
             <h1 className="text-3xl font-bold mb-2">Interactive Tree Map</h1>
-            <p className="text-muted-foreground">Click on the map to plant a tree at Kyambogo University</p>
+            <p className="text-muted-foreground">View planted trees at Kyambogo University</p>
           </div>
           <Button variant="default" size="lg" onClick={() => setIsDialogOpen(true)}>
             <Plus className="w-5 h-5 mr-2" />
@@ -242,7 +232,7 @@ const MapPage = () => {
         </Card>
 
         <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
-          <DialogContent>
+          <DialogContent className="z-[9999]">
             <DialogHeader>
               <DialogTitle>Plant a New Tree 🌳</DialogTitle>
               <DialogDescription>
