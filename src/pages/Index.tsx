@@ -2,10 +2,12 @@ import { Layout } from "@/components/Layout";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { useNavigate } from "react-router-dom";
-import { Leaf, Map, Trophy, ArrowRight } from "lucide-react";
+import { Leaf, Map, Trophy, ArrowRight, Loader2 } from "lucide-react";
+import { useStatistics } from "@/hooks/use-statistics";
 
 const Index = () => {
   const navigate = useNavigate();
+  const { totalTrees, activePlanters, treeSpecies, loading, error } = useStatistics();
 
   return (
     <Layout>
@@ -100,36 +102,59 @@ const Index = () => {
       <section className="py-16 md:py-24 gradient-subtle">
         <div className="container mx-auto px-4">
           <div className="max-w-4xl mx-auto">
-            <Card className="shadow-glow border-2 border-primary/10">
-              <CardContent className="p-8 md:p-12">
-                <div className="text-center mb-8">
-                  <h2 className="text-3xl md:text-4xl font-bold mb-4">Our Mission</h2>
-                  <p className="text-muted-foreground text-lg">
-                    Together, we're creating a greener, more sustainable Kyambogo University campus
-                  </p>
+        <Card className="shadow-glow border-2 border-primary/10">
+          <CardContent className="p-8 md:p-12">
+            <div className="text-center mb-12">
+              <h2 className="text-3xl md:text-4xl font-bold mb-4">Our Growing Impact</h2>
+              <p className="text-muted-foreground text-lg">
+                Real-time statistics from our community's tree planting efforts
+              </p>
+              {error && (
+                <p className="text-destructive text-sm mt-2">
+                  Unable to load current statistics. Please try again later.
+                </p>
+              )}
+            </div>
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
+              <div className="text-center">
+                <div className="text-5xl md:text-6xl font-bold bg-gradient-to-r from-primary to-secondary bg-clip-text text-transparent mb-2 min-h-[4rem] flex items-center justify-center">
+                  {loading ? (
+                    <Loader2 className="w-12 h-12 animate-spin text-primary" />
+                  ) : error ? (
+                    <span className="text-2xl text-muted-foreground">--</span>
+                  ) : (
+                    totalTrees.toLocaleString()
+                  )}
                 </div>
-                <div className="grid grid-cols-1 md:grid-cols-3 gap-8 text-center">
-                  <div>
-                    <div className="text-4xl md:text-5xl font-bold gradient-hero bg-clip-text text-transparent mb-2">
-                      🌍
-                    </div>
-                    <p className="text-muted-foreground">Environmental Impact</p>
-                  </div>
-                  <div>
-                    <div className="text-4xl md:text-5xl font-bold gradient-hero bg-clip-text text-transparent mb-2">
-                      🤝
-                    </div>
-                    <p className="text-muted-foreground">Community Driven</p>
-                  </div>
-                  <div>
-                    <div className="text-4xl md:text-5xl font-bold gradient-hero bg-clip-text text-transparent mb-2">
-                      📍
-                    </div>
-                    <p className="text-muted-foreground">Transparent Tracking</p>
-                  </div>
+                <p className="text-sm text-muted-foreground uppercase tracking-wider">Trees Planted</p>
+              </div>
+              <div className="text-center">
+                <div className="text-5xl md:text-6xl font-bold bg-gradient-to-r from-secondary to-accent bg-clip-text text-transparent mb-2 min-h-[4rem] flex items-center justify-center">
+                  {loading ? (
+                    <Loader2 className="w-12 h-12 animate-spin text-secondary" />
+                  ) : error ? (
+                    <span className="text-2xl text-muted-foreground">--</span>
+                  ) : (
+                    activePlanters.toLocaleString()
+                  )}
                 </div>
-              </CardContent>
-            </Card>
+                <p className="text-sm text-muted-foreground uppercase tracking-wider">Active Planters</p>
+              </div>
+              <div className="text-center">
+                <div className="text-5xl md:text-6xl font-bold bg-gradient-to-r from-accent to-primary bg-clip-text text-transparent mb-2 min-h-[4rem] flex items-center justify-center">
+                  {loading ? (
+                    <Loader2 className="w-12 h-12 animate-spin text-accent" />
+                  ) : error ? (
+                    <span className="text-2xl text-muted-foreground">--</span>
+                  ) : (
+                    treeSpecies.toLocaleString()
+                  )}
+                </div>
+                <p className="text-sm text-muted-foreground uppercase tracking-wider">Tree Species</p>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
           </div>
         </div>
       </section>
