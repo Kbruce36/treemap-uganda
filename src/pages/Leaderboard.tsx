@@ -67,14 +67,14 @@ const Leaderboard = () => {
 
   return (
     <Layout>
-      <div className="container mx-auto px-4 py-8">
+      <div className="container mx-auto px-4 py-4 md:py-8">
         <div className="max-w-3xl mx-auto">
-          <div className="mb-8 text-center">
-            <div className="w-20 h-20 gradient-hero rounded-2xl flex items-center justify-center mx-auto mb-4 shadow-glow">
-              <Trophy className="w-12 h-12 text-primary-foreground" />
+          <div className="mb-6 md:mb-8 text-center">
+            <div className="w-16 h-16 md:w-20 md:h-20 gradient-hero rounded-2xl flex items-center justify-center mx-auto mb-3 md:mb-4 shadow-glow">
+              <Trophy className="w-10 h-10 md:w-12 md:h-12 text-primary-foreground" />
             </div>
-            <h1 className="text-4xl font-bold mb-2">Leaderboard</h1>
-            <p className="text-muted-foreground text-lg">
+            <h1 className="text-3xl md:text-4xl font-bold mb-2">Leaderboard</h1>
+            <p className="text-muted-foreground text-base md:text-lg px-2">
               Top tree planters making a difference
             </p>
           </div>
@@ -93,31 +93,31 @@ const Leaderboard = () => {
                   <p className="text-muted-foreground">No trees planted yet. Be the first!</p>
                 </div>
               ) : (
-                <div className="space-y-3">
+                <div className="space-y-2 md:space-y-3">
                   {leaderboard.map((entry, index) => (
                     <div
                       key={entry.user_id}
-                      className={`flex items-center gap-4 p-4 rounded-lg transition-all hover:bg-muted/50 ${
+                      className={`flex items-center gap-2 md:gap-4 p-3 md:p-4 rounded-lg transition-all hover:bg-muted/50 ${
                         index < 3 ? "bg-muted/30 border-2 border-primary/20" : "bg-muted/10"
                       }`}
                     >
-                      <div className="flex items-center justify-center w-12 h-12 font-bold text-xl">
+                      <div className="flex items-center justify-center w-10 h-10 md:w-12 md:h-12 font-bold text-lg md:text-xl flex-shrink-0">
                         {getMedalIcon(index) || (
                           <span className="text-muted-foreground">#{index + 1}</span>
                         )}
                       </div>
-                      <Avatar className="w-12 h-12">
-                        <AvatarFallback className="bg-primary text-primary-foreground text-lg">
+                      <Avatar className="w-10 h-10 md:w-12 md:h-12 flex-shrink-0">
+                        <AvatarFallback className="bg-primary text-primary-foreground text-base md:text-lg">
                           {entry.full_name[0].toUpperCase()}
                         </AvatarFallback>
                       </Avatar>
-                      <div className="flex-1">
-                        <h3 className="font-semibold">{entry.full_name}</h3>
-                        <p className="text-sm text-muted-foreground">{entry.email}</p>
+                      <div className="flex-1 min-w-0">
+                        <h3 className="font-semibold text-sm md:text-base truncate">{entry.full_name}</h3>
+                        <p className="text-xs md:text-sm text-muted-foreground truncate">{entry.email}</p>
                       </div>
-                      <div className="flex items-center gap-2 bg-secondary/20 px-4 py-2 rounded-full">
-                        <Leaf className="w-5 h-5 text-secondary" />
-                        <span className="font-bold text-lg">{entry.tree_count}</span>
+                      <div className="flex items-center gap-1.5 md:gap-2 bg-secondary/20 px-2 md:px-4 py-1.5 md:py-2 rounded-full flex-shrink-0">
+                        <Leaf className="w-4 h-4 md:w-5 md:h-5 text-secondary" />
+                        <span className="font-bold text-base md:text-lg">{entry.tree_count}</span>
                       </div>
                     </div>
                   ))}

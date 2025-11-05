@@ -14,6 +14,14 @@ import L from "leaflet";
 import "leaflet/dist/leaflet.css";
 import { Plus, Leaf } from "lucide-react";
 
+// Fix Leaflet default marker icon issue in Vite/mobile
+delete (L.Icon.Default.prototype as any)._getIconUrl;
+L.Icon.Default.mergeOptions({
+  iconRetinaUrl: 'https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/images/marker-icon-2x.png',
+  iconUrl: 'https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/images/marker-icon.png',
+  shadowUrl: 'https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/images/marker-shadow.png',
+});
+
 interface Tree {
   id: string;
   latitude: number;
@@ -70,6 +78,7 @@ const MapPage = () => {
 
   // Initialize Leaflet map
   useEffect(() => {
+    if (!session) return;
     if (!mapContainerRef.current || mapInstanceRef.current) return;
 
     const map = L.map(mapContainerRef.current).setView([0, 0], 2);
@@ -78,22 +87,32 @@ const MapPage = () => {
       attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors',
     }).addTo(map);
 
-    // Try to locate user
-    map.locate({ setView: true, maxZoom: 16 });
+    // Ensure proper sizing after mount and on resize
+    const handleResize = () => map.invalidateSize();
+    map.whenReady(() => {
+      setTimeout(() => map.invalidateSize(), 0);
+    });
+    window.addEventListener('resize', handleResize);
+
+    // Try to locate user with high accuracy
+    map.locate({ setView: true, maxZoom: 18, enableHighAccuracy: true });
 
     // When location is found
     map.on('locationfound', (e) => {
+      // Explicitly set view to user location with good zoom
+      map.setView(e.latlng, 18);
+      
       const marker = L.marker(e.latlng).addTo(map)
         .bindPopup("You are here 🌳<br>Click to mark tree location.")
         .openPopup();
 
       // Allow user to confirm tree planting by clicking marker
       marker.on('click', () => {
-        setNewTree({
-          ...newTree,
+        setNewTree((prev) => ({
+          ...prev,
           latitude: e.latlng.lat,
           longitude: e.latlng.lng,
-        });
+        }));
         setIsDialogOpen(true);
       });
 
@@ -105,23 +124,14 @@ const MapPage = () => {
       toast.error("Location access denied or unavailable.");
     });
 
-    // Also allow clicking anywhere on the map
-    map.on("click", (e) => {
-      setNewTree({
-        ...newTree,
-        latitude: e.latlng.lat,
-        longitude: e.latlng.lng,
-      });
-      setIsDialogOpen(true);
-    });
-
     mapInstanceRef.current = map;
 
     return () => {
+      window.removeEventListener('resize', handleResize);
       map.remove();
       mapInstanceRef.current = null;
     };
-  }, []);
+  }, [session]);
 
   const fetchTrees = async () => {
     const { data, error } = await supabase
@@ -209,7 +219,7 @@ const MapPage = () => {
         <div className="mb-6 flex items-center justify-between">
           <div>
             <h1 className="text-3xl font-bold mb-2">Interactive Tree Map</h1>
-            <p className="text-muted-foreground">Click on the map to plant a tree at Kyambogo University</p>
+            <p className="text-muted-foreground">View planted trees at Kyambogo University</p>
           </div>
           <Button variant="default" size="lg" onClick={() => setIsDialogOpen(true)}>
             <Plus className="w-5 h-5 mr-2" />
@@ -222,7 +232,7 @@ const MapPage = () => {
         </Card>
 
         <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
-          <DialogContent>
+          <DialogContent className="z-[9999]">
             <DialogHeader>
               <DialogTitle>Plant a New Tree 🌳</DialogTitle>
               <DialogDescription>
