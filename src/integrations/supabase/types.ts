@@ -45,6 +45,9 @@ export type Database = {
         Row: {
           created_at: string | null
           id: string
+          image_1: string | null
+          image_2: string | null
+          image_3: string | null
           latitude: number
           longitude: number
           notes: string | null
@@ -55,6 +58,9 @@ export type Database = {
         Insert: {
           created_at?: string | null
           id?: string
+          image_1?: string | null
+          image_2?: string | null
+          image_3?: string | null
           latitude: number
           longitude: number
           notes?: string | null
@@ -65,6 +71,9 @@ export type Database = {
         Update: {
           created_at?: string | null
           id?: string
+          image_1?: string | null
+          image_2?: string | null
+          image_3?: string | null
           latitude?: number
           longitude?: number
           notes?: string | null

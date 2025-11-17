@@ -29,6 +29,9 @@ interface Tree {
   species: string | null;
   notes: string | null;
   planted_date: string;
+  image_1: string | null;
+  image_2: string | null;
+  image_3: string | null;
   profiles: {
     full_name: string;
   };
@@ -45,6 +48,7 @@ const MapPage = () => {
     latitude: 0.3476,
     longitude: 32.6056,
   });
+  const [uploadedImages, setUploadedImages] = useState<File[]>([]);
   const navigate = useNavigate();
   const mapContainerRef = useRef<HTMLDivElement>(null);
   const mapInstanceRef = useRef<L.Map | null>(null);
@@ -161,35 +165,85 @@ const MapPage = () => {
 
     // Add new markers for each tree
     trees.forEach((tree) => {
+      const images = [tree.image_1, tree.image_2, tree.image_3].filter(Boolean);
+      const imagesHtml = images.length > 0 
+        ? `<div style="display: flex; gap: 4px; margin-top: 8px; overflow-x: auto;">
+            ${images.map(img => `<img src="${img}" style="width: 100px; height: 100px; object-fit: cover; border-radius: 4px;" />`).join('')}
+          </div>`
+        : '';
+      
       const marker = L.marker([tree.latitude, tree.longitude])
         .addTo(map)
         .bindPopup(
-          `<div>
+          `<div style="min-width: 200px;">
             <h3 style="font-weight: bold; margin-bottom: 4px;">${tree.species || 'Tree'}</h3>
             <p style="margin: 2px 0;">Planted: ${new Date(tree.planted_date).toLocaleDateString()}</p>
             <p style="margin: 2px 0;">By: ${tree.profiles?.full_name || 'Unknown'}</p>
             ${tree.notes ? `<p style="margin: 2px 0;">Notes: ${tree.notes}</p>` : ''}
-          </div>`
+            ${imagesHtml}
+          </div>`,
+          { maxWidth: 320 }
         );
       
       markersRef.current.push(marker);
     });
   }, [trees]);
 
+  const handleImageUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const files = Array.from(e.target.files || []);
+    const validFiles = files.filter(file => file.type.startsWith('image/'));
+    
+    if (uploadedImages.length + validFiles.length > 3) {
+      toast.error("You can only upload up to 3 images");
+      return;
+    }
+    
+    setUploadedImages([...uploadedImages, ...validFiles].slice(0, 3));
+  };
+
+  const removeImage = (index: number) => {
+    setUploadedImages(uploadedImages.filter((_, i) => i !== index));
+  };
+
   const handleAddTree = async () => {
     if (!session?.user) return;
 
-    const { error } = await supabase.from("trees").insert({
-      user_id: session.user.id,
-      latitude: newTree.latitude,
-      longitude: newTree.longitude,
-      species: newTree.species || null,
-      notes: newTree.notes || null,
-    });
+    try {
+      // Upload images first
+      const imageUrls: (string | null)[] = [null, null, null];
+      
+      for (let i = 0; i < uploadedImages.length; i++) {
+        const file = uploadedImages[i];
+        const fileExt = file.name.split('.').pop();
+        const fileName = `${session.user.id}/${Date.now()}-${i}.${fileExt}`;
+        
+        const { error: uploadError, data } = await supabase.storage
+          .from('tree-images')
+          .upload(fileName, file);
 
-    if (error) {
-      toast.error("Failed to add tree");
-    } else {
+        if (uploadError) throw uploadError;
+        
+        const { data: { publicUrl } } = supabase.storage
+          .from('tree-images')
+          .getPublicUrl(fileName);
+        
+        imageUrls[i] = publicUrl;
+      }
+
+      // Insert tree with image URLs
+      const { error } = await supabase.from("trees").insert({
+        user_id: session.user.id,
+        latitude: newTree.latitude,
+        longitude: newTree.longitude,
+        species: newTree.species || null,
+        notes: newTree.notes || null,
+        image_1: imageUrls[0],
+        image_2: imageUrls[1],
+        image_3: imageUrls[2],
+      });
+
+      if (error) throw error;
+
       toast.success("Tree planted successfully! 🌱");
       setIsDialogOpen(false);
       setNewTree({
@@ -198,7 +252,11 @@ const MapPage = () => {
         species: "",
         notes: "",
       });
+      setUploadedImages([]);
       fetchTrees();
+    } catch (error) {
+      console.error(error);
+      toast.error("Failed to add tree");
     }
   };
 
@@ -264,6 +322,38 @@ const MapPage = () => {
                   onChange={(e) => setNewTree({ ...newTree, notes: e.target.value })}
                 />
               </div>
+              
+              <div className="space-y-2">
+                <Label htmlFor="images">Upload Images (Up to 3)</Label>
+                <Input
+                  id="images"
+                  type="file"
+                  accept="image/*"
+                  multiple
+                  onChange={handleImageUpload}
+                  className="cursor-pointer"
+                />
+                {uploadedImages.length > 0 && (
+                  <div className="flex gap-2 flex-wrap mt-2">
+                    {uploadedImages.map((file, index) => (
+                      <div key={index} className="relative">
+                        <img
+                          src={URL.createObjectURL(file)}
+                          alt={`Preview ${index + 1}`}
+                          className="w-20 h-20 object-cover rounded border"
+                        />
+                        <button
+                          onClick={() => removeImage(index)}
+                          className="absolute -top-2 -right-2 bg-destructive text-destructive-foreground rounded-full w-6 h-6 flex items-center justify-center text-xs"
+                        >
+                          ×
+                        </button>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+              
               <Button onClick={handleAddTree} className="w-full" size="lg">
                 <Leaf className="w-4 h-4 mr-2" />
                 Plant Tree
