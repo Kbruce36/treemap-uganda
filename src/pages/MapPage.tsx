@@ -53,7 +53,7 @@ const MapPage = () => {
   const mapContainerRef = useRef<HTMLDivElement>(null);
   const mapInstanceRef = useRef<L.Map | null>(null);
   const markersRef = useRef<L.Marker[]>([]);
-
+  const newTreeMarkerRef = useRef<L.Marker | null>(null);
   useEffect(() => {
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
       (event, session) => {
@@ -106,26 +106,53 @@ const MapPage = () => {
       // Explicitly set view to user location with good zoom
       map.setView(e.latlng, 18);
       
-      const marker = L.marker(e.latlng).addTo(map)
-        .bindPopup("You are here 🌳<br>Click to mark tree location.")
-        .openPopup();
-
-      // Allow user to confirm tree planting by clicking marker
-      marker.on('click', () => {
-        setNewTree((prev) => ({
-          ...prev,
-          latitude: e.latlng.lat,
-          longitude: e.latlng.lng,
-        }));
-        setIsDialogOpen(true);
-      });
-
-      toast.success("Location found! Click the marker or anywhere on the map to plant a tree.");
+      // Add a blue marker for user's current location
+      L.circleMarker(e.latlng, {
+        color: '#3b82f6',
+        fillColor: '#3b82f6',
+        fillOpacity: 0.5,
+        radius: 8
+      }).addTo(map).bindPopup("Your current location");
+      
+      toast.success("Location found! Click anywhere on the map to place a tree marker.");
     });
 
     // If location fails
     map.on('locationerror', () => {
       toast.error("Location access denied or unavailable.");
+    });
+
+    // Click on map to place/move tree marker
+    map.on('click', (e) => {
+      // Remove old marker if exists
+      if (newTreeMarkerRef.current) {
+        map.removeLayer(newTreeMarkerRef.current);
+      }
+
+      // Create new draggable marker
+      const marker = L.marker(e.latlng, { draggable: true })
+        .addTo(map)
+        .bindPopup("🌱 Tree location<br><small>Drag to adjust or click Plant Tree</small>")
+        .openPopup();
+
+      // Update coordinates when marker is dragged
+      marker.on('dragend', () => {
+        const position = marker.getLatLng();
+        setNewTree((prev) => ({
+          ...prev,
+          latitude: position.lat,
+          longitude: position.lng,
+        }));
+      });
+
+      newTreeMarkerRef.current = marker;
+
+      // Update state with clicked location
+      setNewTree((prev) => ({
+        ...prev,
+        latitude: e.latlng.lat,
+        longitude: e.latlng.lng,
+      }));
     });
 
     mapInstanceRef.current = map;
@@ -245,6 +272,13 @@ const MapPage = () => {
       if (error) throw error;
 
       toast.success("Tree planted successfully! 🌱");
+      
+      // Remove the placement marker
+      if (newTreeMarkerRef.current && mapInstanceRef.current) {
+        mapInstanceRef.current.removeLayer(newTreeMarkerRef.current);
+        newTreeMarkerRef.current = null;
+      }
+      
       setIsDialogOpen(false);
       setNewTree({
         latitude: 0.3476,
@@ -277,7 +311,7 @@ const MapPage = () => {
         <div className="mb-6 flex items-center justify-between">
           <div>
             <h1 className="text-3xl font-bold mb-2">Interactive Tree Map</h1>
-            <p className="text-muted-foreground">View planted trees at Kyambogo University</p>
+            <p className="text-muted-foreground">Click anywhere on the map to place a tree marker</p>
           </div>
           <Button variant="default" size="lg" onClick={() => setIsDialogOpen(true)}>
             <Plus className="w-5 h-5 mr-2" />
