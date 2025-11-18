@@ -8,6 +8,7 @@ import Auth from "./pages/Auth";
 import MapPage from "./pages/MapPage";
 import Leaderboard from "./pages/Leaderboard";
 import Profile from "./pages/Profile";
+import UserTrees from "./pages/UserTrees";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
@@ -24,6 +25,7 @@ const App = () => (
           <Route path="/map" element={<MapPage />} />
           <Route path="/leaderboard" element={<Leaderboard />} />
           <Route path="/profile" element={<Profile />} />
+          <Route path="/user/:userId/trees" element={<UserTrees />} />
           {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
           <Route path="*" element={<NotFound />} />
         </Routes>

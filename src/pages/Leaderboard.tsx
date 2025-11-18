@@ -99,7 +99,7 @@ const Leaderboard = () => {
                   {leaderboard.map((entry, index) => (
                     <div
                       key={entry.user_id}
-                      onClick={() => navigate(`/map?userId=${entry.user_id}`)}
+                      onClick={() => navigate(`/user/${entry.user_id}/trees`)}
                       className={`flex items-center gap-2 md:gap-4 p-3 md:p-4 rounded-lg transition-all hover:bg-muted/50 cursor-pointer ${
                         index < 3 ? "bg-muted/30 border-2 border-primary/20" : "bg-muted/10"
                       }`}
