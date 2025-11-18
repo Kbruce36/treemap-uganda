@@ -57,7 +57,9 @@ const MapPage = () => {
   const markersRef = useRef<L.Marker[]>([]);
   const newTreeMarkerRef = useRef<L.Marker | null>(null);
   
-  const filterUserId = searchParams.get('userId');
+  const treeId = searchParams.get('treeId');
+  const focusLat = searchParams.get('lat');
+  const focusLng = searchParams.get('lng');
   useEffect(() => {
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
       (event, session) => {
@@ -82,7 +84,7 @@ const MapPage = () => {
     if (session) {
       fetchTrees();
     }
-  }, [session, filterUserId]);
+  }, [session]);
 
   // Initialize Leaflet map
   useEffect(() => {
@@ -169,19 +171,13 @@ const MapPage = () => {
   }, [session]);
 
   const fetchTrees = async () => {
-    let query = supabase
+    const { data, error } = await supabase
       .from("trees")
       .select(`
         *,
         profiles(full_name)
       `)
       .order("created_at", { ascending: false });
-
-    if (filterUserId) {
-      query = query.eq("user_id", filterUserId);
-    }
-
-    const { data, error } = await query;
 
     if (error) {
       toast.error("Failed to load trees");
@@ -243,8 +239,14 @@ const MapPage = () => {
       });
       
       markersRef.current.push(marker);
+
+      // Focus on specific tree if treeId is provided
+      if (treeId === tree.id && focusLat && focusLng) {
+        map.setView([parseFloat(focusLat), parseFloat(focusLng)], 18);
+        marker.openPopup();
+      }
     });
-  }, [trees]);
+  }, [trees, treeId, focusLat, focusLng]);
 
   const handleImageUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
     const files = Array.from(e.target.files || []);
