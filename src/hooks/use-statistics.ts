@@ -26,8 +26,8 @@ export const useStatistics = (): Statistics => {
 
       // Use Promise.all for parallel execution of queries
       const [treesResult, plantersResult, speciesResult] = await Promise.all([
-        // Fetch total trees count
-        supabase.from('trees').select('*', { count: 'exact', head: true }),
+        // Fetch total trees with tree_count to sum them
+        supabase.from('trees').select('tree_count'),
         
         // Fetch unique active planters
         supabase.from('trees').select('user_id'),
@@ -40,6 +40,9 @@ export const useStatistics = (): Statistics => {
       if (plantersResult.error) throw plantersResult.error;
       if (speciesResult.error) throw speciesResult.error;
 
+      // Sum up all tree_count values to get total trees planted
+      const totalTreesPlanted = treesResult.data?.reduce((sum, tree) => sum + (tree.tree_count || 0), 0) || 0;
+      
       const uniquePlanters = new Set(plantersResult.data?.map(tree => tree.user_id)).size;
       const uniqueSpecies = new Set(
         speciesResult.data?.map(tree => tree.species?.toLowerCase().trim()).filter(Boolean)
@@ -47,7 +50,7 @@ export const useStatistics = (): Statistics => {
 
       setStatistics(prev => ({
         ...prev,
-        totalTrees: treesResult.count || 0,
+        totalTrees: totalTreesPlanted,
         activePlanters: uniquePlanters,
         treeSpecies: uniqueSpecies,
         loading: false,

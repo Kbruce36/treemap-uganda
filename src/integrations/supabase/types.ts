@@ -53,6 +53,7 @@ export type Database = {
           notes: string | null
           planted_date: string | null
           species: string | null
+          tree_count: number
           user_id: string
         }
         Insert: {
@@ -66,6 +67,7 @@ export type Database = {
           notes?: string | null
           planted_date?: string | null
           species?: string | null
+          tree_count?: number
           user_id: string
         }
         Update: {
@@ -79,6 +81,7 @@ export type Database = {
           notes?: string | null
           planted_date?: string | null
           species?: string | null
+          tree_count?: number
           user_id?: string
         }
         Relationships: [
