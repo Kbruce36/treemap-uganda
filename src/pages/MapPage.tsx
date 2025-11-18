@@ -29,6 +29,7 @@ interface Tree {
   species: string | null;
   notes: string | null;
   planted_date: string;
+  tree_count: number;
   image_1: string | null;
   image_2: string | null;
   image_3: string | null;
@@ -46,6 +47,7 @@ const MapPage = () => {
   const [newTree, setNewTree] = useState({
     species: "",
     notes: "",
+    tree_count: 1,
     latitude: 0.3476,
     longitude: 32.6056,
   });
@@ -210,7 +212,8 @@ const MapPage = () => {
         .bindPopup(
           `<div style="min-width: 200px;">
             <h3 style="font-weight: bold; margin-bottom: 4px;">${tree.species || 'Tree'}</h3>
-            <p style="margin: 2px 0;">Planted: ${new Date(tree.planted_date).toLocaleDateString()}</p>
+            <p style="margin: 2px 0;">Trees planted: ${tree.tree_count}</p>
+            <p style="margin: 2px 0;">Date: ${new Date(tree.planted_date).toLocaleDateString()}</p>
             <p style="margin: 2px 0;">By: ${tree.profiles?.full_name || 'Unknown'}</p>
             ${tree.notes ? `<p style="margin: 2px 0;">Notes: ${tree.notes}</p>` : ''}
             ${imagesHtml}
@@ -296,6 +299,7 @@ const MapPage = () => {
         longitude: newTree.longitude,
         species: newTree.species || null,
         notes: newTree.notes || null,
+        tree_count: newTree.tree_count,
         image_1: imageUrls[0],
         image_2: imageUrls[1],
         image_3: imageUrls[2],
@@ -317,6 +321,7 @@ const MapPage = () => {
         longitude: 32.6056,
         species: "",
         notes: "",
+        tree_count: 1,
       });
       setUploadedImages([]);
       fetchTrees();
