@@ -1,5 +1,5 @@
 import { useEffect, useState, useRef } from "react";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, useSearchParams } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { Session } from "@supabase/supabase-js";
 import { Button } from "@/components/ui/button";
@@ -42,6 +42,7 @@ const MapPage = () => {
   const [trees, setTrees] = useState<Tree[]>([]);
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [selectedTreeId, setSelectedTreeId] = useState<string | null>(null);
+  const [selectedImage, setSelectedImage] = useState<string | null>(null);
   const [newTree, setNewTree] = useState({
     species: "",
     notes: "",
@@ -49,11 +50,14 @@ const MapPage = () => {
     longitude: 32.6056,
   });
   const [uploadedImages, setUploadedImages] = useState<File[]>([]);
+  const [searchParams] = useSearchParams();
   const navigate = useNavigate();
   const mapContainerRef = useRef<HTMLDivElement>(null);
   const mapInstanceRef = useRef<L.Map | null>(null);
   const markersRef = useRef<L.Marker[]>([]);
   const newTreeMarkerRef = useRef<L.Marker | null>(null);
+  
+  const filterUserId = searchParams.get('userId');
   useEffect(() => {
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
       (event, session) => {
@@ -78,7 +82,7 @@ const MapPage = () => {
     if (session) {
       fetchTrees();
     }
-  }, [session]);
+  }, [session, filterUserId]);
 
   // Initialize Leaflet map
   useEffect(() => {
@@ -165,13 +169,19 @@ const MapPage = () => {
   }, [session]);
 
   const fetchTrees = async () => {
-    const { data, error } = await supabase
+    let query = supabase
       .from("trees")
       .select(`
         *,
         profiles(full_name)
       `)
       .order("created_at", { ascending: false });
+
+    if (filterUserId) {
+      query = query.eq("user_id", filterUserId);
+    }
+
+    const { data, error } = await query;
 
     if (error) {
       toast.error("Failed to load trees");
@@ -195,7 +205,7 @@ const MapPage = () => {
       const images = [tree.image_1, tree.image_2, tree.image_3].filter(Boolean);
       const imagesHtml = images.length > 0 
         ? `<div style="display: flex; gap: 4px; margin-top: 8px; overflow-x: auto;">
-            ${images.map(img => `<img src="${img}" style="width: 100px; height: 100px; object-fit: cover; border-radius: 4px;" />`).join('')}
+            ${images.map((img, idx) => `<img data-image="${img}" class="tree-image-thumbnail" src="${img}" style="width: 100px; height: 100px; object-fit: cover; border-radius: 4px; cursor: pointer;" />`).join('')}
           </div>`
         : '';
       
@@ -211,6 +221,26 @@ const MapPage = () => {
           </div>`,
           { maxWidth: 320 }
         );
+      
+      // Add click handler for images in popup
+      marker.on('popupopen', () => {
+        const popup = marker.getPopup();
+        if (popup) {
+          const popupElement = popup.getElement();
+          if (popupElement) {
+            const imageElements = popupElement.querySelectorAll('.tree-image-thumbnail');
+            imageElements.forEach((imgEl) => {
+              imgEl.addEventListener('click', (e) => {
+                const target = e.target as HTMLElement;
+                const imageUrl = target.getAttribute('data-image');
+                if (imageUrl) {
+                  setSelectedImage(imageUrl);
+                }
+              });
+            });
+          }
+        }
+      });
       
       markersRef.current.push(marker);
     });
@@ -393,6 +423,21 @@ const MapPage = () => {
                 Plant Tree
               </Button>
             </div>
+          </DialogContent>
+        </Dialog>
+
+        <Dialog open={!!selectedImage} onOpenChange={() => setSelectedImage(null)}>
+          <DialogContent className="max-w-4xl z-[9999]">
+            <DialogHeader>
+              <DialogTitle>Tree Image</DialogTitle>
+            </DialogHeader>
+            {selectedImage && (
+              <img 
+                src={selectedImage} 
+                alt="Tree" 
+                className="w-full h-auto max-h-[70vh] object-contain rounded-lg"
+              />
+            )}
           </DialogContent>
         </Dialog>
       </div>

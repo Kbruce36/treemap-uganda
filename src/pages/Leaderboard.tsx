@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react";
+import { useNavigate } from "react-router-dom";
 import { Layout } from "@/components/Layout";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
@@ -16,6 +17,7 @@ interface LeaderboardEntry {
 const Leaderboard = () => {
   const [leaderboard, setLeaderboard] = useState<LeaderboardEntry[]>([]);
   const [loading, setLoading] = useState(true);
+  const navigate = useNavigate();
 
   useEffect(() => {
     fetchLeaderboard();
@@ -97,7 +99,8 @@ const Leaderboard = () => {
                   {leaderboard.map((entry, index) => (
                     <div
                       key={entry.user_id}
-                      className={`flex items-center gap-2 md:gap-4 p-3 md:p-4 rounded-lg transition-all hover:bg-muted/50 ${
+                      onClick={() => navigate(`/map?userId=${entry.user_id}`)}
+                      className={`flex items-center gap-2 md:gap-4 p-3 md:p-4 rounded-lg transition-all hover:bg-muted/50 cursor-pointer ${
                         index < 3 ? "bg-muted/30 border-2 border-primary/20" : "bg-muted/10"
                       }`}
                     >
