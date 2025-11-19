@@ -48,11 +48,67 @@ const Index = () => {
         </div>
       </section>
 
+      {/* Explore Section */}
+      <section className="py-16 md:py-24 bg-muted/30">
+        <div className="container mx-auto px-4">
+          <div className="text-center mb-12">
+            <h2 className="text-3xl md:text-4xl font-bold mb-4">Explore Our Impact</h2>
+            <p className="text-muted-foreground text-lg max-w-2xl mx-auto">
+              No account needed to see what we've accomplished together
+            </p>
+          </div>
+
+          <div className="grid md:grid-cols-2 gap-8 max-w-4xl mx-auto mb-8">
+            <Card className="shadow-card hover:shadow-glow transition-all duration-300 border-2 border-transparent hover:border-primary/20">
+              <CardContent className="pt-8">
+                <div className="w-16 h-16 bg-primary rounded-2xl flex items-center justify-center mb-6 shadow-sm">
+                  <Map className="w-8 h-8 text-primary-foreground" />
+                </div>
+                <h3 className="text-xl font-bold mb-3">View the Tree Map</h3>
+                <p className="text-muted-foreground mb-6">
+                  Browse the interactive map to see every tree planted across Kyambogo University campus. View locations, species, and planting details.
+                </p>
+                <Button variant="outline" onClick={() => navigate("/map")} className="w-full">
+                  Explore Map
+                  <ArrowRight className="w-4 h-4 ml-2" />
+                </Button>
+              </CardContent>
+            </Card>
+
+            <Card className="shadow-card hover:shadow-glow transition-all duration-300 border-2 border-transparent hover:border-secondary/20">
+              <CardContent className="pt-8">
+                <div className="w-16 h-16 bg-secondary rounded-2xl flex items-center justify-center mb-6 shadow-sm">
+                  <Trophy className="w-8 h-8 text-secondary-foreground" />
+                </div>
+                <h3 className="text-xl font-bold mb-3">Check the Leaderboard</h3>
+                <p className="text-muted-foreground mb-6">
+                  See who's leading the green movement! View rankings of top planters and celebrate our community's collective environmental impact.
+                </p>
+                <Button variant="outline" onClick={() => navigate("/leaderboard")} className="w-full">
+                  View Rankings
+                  <ArrowRight className="w-4 h-4 ml-2" />
+                </Button>
+              </CardContent>
+            </Card>
+          </div>
+
+          <div className="text-center">
+            <p className="text-muted-foreground mb-4">
+              Ready to contribute? Sign in to start planting your own trees!
+            </p>
+            <Button variant="hero" size="lg" onClick={() => navigate("/auth")}>
+              Get Started
+              <ArrowRight className="w-5 h-5" />
+            </Button>
+          </div>
+        </div>
+      </section>
+
       {/* Features Section */}
       <section className="py-16 md:py-24">
         <div className="container mx-auto px-4">
           <div className="text-center mb-16">
-            <h2 className="text-3xl md:text-4xl font-bold mb-4">How It Works</h2>
+            <h2 className="text-3xl md:text-4xl font-bold mb-4">How to Plant Trees</h2>
             <p className="text-muted-foreground text-lg max-w-2xl mx-auto">
               Three simple steps to make a lasting environmental impact
             </p>
