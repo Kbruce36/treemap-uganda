@@ -395,6 +395,18 @@ const MapPage = () => {
               </div>
               
               <div className="space-y-2">
+                <Label htmlFor="tree_count">Number of Trees</Label>
+                <Input
+                  id="tree_count"
+                  type="number"
+                  min="1"
+                  placeholder="e.g., 15"
+                  value={newTree.tree_count}
+                  onChange={(e) => setNewTree({ ...newTree, tree_count: parseInt(e.target.value) || 1 })}
+                />
+              </div>
+              
+              <div className="space-y-2">
                 <Label htmlFor="images">Upload Images (Up to 3)</Label>
                 <Input
                   id="images"
