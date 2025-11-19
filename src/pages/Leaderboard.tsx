@@ -29,6 +29,7 @@ const Leaderboard = () => {
         .from("trees")
         .select(`
           user_id,
+          tree_count,
           profiles(full_name, email)
         `);
 
@@ -44,7 +45,7 @@ const Leaderboard = () => {
             tree_count: 0,
           };
         }
-        acc[userId].tree_count += 1;
+        acc[userId].tree_count += tree.tree_count;
         return acc;
       }, {});
 
