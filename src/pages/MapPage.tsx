@@ -66,31 +66,22 @@ const MapPage = () => {
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
       (event, session) => {
         setSession(session);
-        if (!session) {
-          navigate("/auth");
-        }
       }
     );
 
     supabase.auth.getSession().then(({ data: { session } }) => {
       setSession(session);
-      if (!session) {
-        navigate("/auth");
-      }
     });
 
     return () => subscription.unsubscribe();
   }, [navigate]);
 
   useEffect(() => {
-    if (session) {
-      fetchTrees();
-    }
-  }, [session]);
+    fetchTrees();
+  }, []);
 
   // Initialize Leaflet map
   useEffect(() => {
-    if (!session) return;
     if (!mapContainerRef.current || mapInstanceRef.current) return;
 
     const map = L.map(mapContainerRef.current).setView([0, 0], 2);
@@ -130,8 +121,13 @@ const MapPage = () => {
       toast.error("Location access denied or unavailable.");
     });
 
-    // Click on map to place/move tree marker
+    // Click on map to place/move tree marker (only for authenticated users)
     map.on('click', (e) => {
+      if (!session) {
+        toast.info("Please sign in to plant trees");
+        return;
+      }
+      
       // Remove old marker if exists
       if (newTreeMarkerRef.current) {
         map.removeLayer(newTreeMarkerRef.current);
@@ -170,7 +166,7 @@ const MapPage = () => {
       map.remove();
       mapInstanceRef.current = null;
     };
-  }, [session]);
+  }, []);
 
   const fetchTrees = async () => {
     const { data, error } = await supabase
@@ -331,29 +327,26 @@ const MapPage = () => {
     }
   };
 
-  if (!session) {
-    return (
-      <Layout>
-        <div className="container mx-auto px-4 py-16 text-center">
-          <h1 className="text-2xl font-bold mb-2">Please sign in</h1>
-          <p className="text-muted-foreground">You must be signed in to view the map.</p>
-        </div>
-      </Layout>
-    );
-  }
-
   return (
     <Layout>
       <div className="container mx-auto px-4 py-8">
         <div className="mb-6 flex items-center justify-between">
           <div>
             <h1 className="text-3xl font-bold mb-2">Interactive Tree Map</h1>
-            <p className="text-muted-foreground">Click anywhere on the map to place a tree marker</p>
+            <p className="text-muted-foreground">
+              {session ? "Click anywhere on the map to place a tree marker" : "View trees planted by our community"}
+            </p>
           </div>
-          <Button variant="default" size="lg" onClick={() => setIsDialogOpen(true)}>
-            <Plus className="w-5 h-5 mr-2" />
-            Plant Tree
-          </Button>
+          {session ? (
+            <Button variant="default" size="lg" onClick={() => setIsDialogOpen(true)}>
+              <Plus className="w-5 h-5 mr-2" />
+              Plant Tree
+            </Button>
+          ) : (
+            <Button variant="default" size="lg" onClick={() => navigate("/auth")}>
+              Sign In to Plant
+            </Button>
+          )}
         </div>
 
         <Card className="overflow-hidden">
