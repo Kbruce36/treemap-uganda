@@ -37,15 +37,18 @@ const Leaderboard = () => {
 
       const counts = data.reduce((acc: any, tree: any) => {
         const userId = tree.user_id;
+        // Skip entries without valid profile data
+        if (!tree.profiles) return acc;
+        
         if (!acc[userId]) {
           acc[userId] = {
             user_id: userId,
-            full_name: tree.profiles.full_name,
-            email: tree.profiles.email,
+            full_name: tree.profiles.full_name || 'Unknown',
+            email: tree.profiles.email || '',
             tree_count: 0,
           };
         }
-        acc[userId].tree_count += tree.tree_count;
+        acc[userId].tree_count += tree.tree_count || 1;
         return acc;
       }, {});
 
