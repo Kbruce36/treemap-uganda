@@ -121,8 +121,21 @@ const MapPage = () => {
       toast.error("Location access denied or unavailable.");
     });
 
-    // Click on map to place/move tree marker (only for authenticated users)
-    map.on('click', (e) => {
+    mapInstanceRef.current = map;
+
+    return () => {
+      window.removeEventListener('resize', handleResize);
+      map.remove();
+      mapInstanceRef.current = null;
+    };
+  }, []);
+
+  // Handle map clicks separately, with session in dependency array
+  useEffect(() => {
+    const map = mapInstanceRef.current;
+    if (!map) return;
+
+    const handleMapClick = (e: L.LeafletMouseEvent) => {
       if (!session) {
         toast.info("Please sign in to plant trees");
         return;
@@ -157,16 +170,14 @@ const MapPage = () => {
         latitude: e.latlng.lat,
         longitude: e.latlng.lng,
       }));
-    });
+    };
 
-    mapInstanceRef.current = map;
+    map.on('click', handleMapClick);
 
     return () => {
-      window.removeEventListener('resize', handleResize);
-      map.remove();
-      mapInstanceRef.current = null;
+      map.off('click', handleMapClick);
     };
-  }, []);
+  }, [session]);
 
   const fetchTrees = async () => {
     const { data, error } = await supabase
