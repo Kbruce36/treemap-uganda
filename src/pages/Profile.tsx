@@ -189,7 +189,9 @@ const Profile = () => {
             <Card className="shadow-card">
               <CardContent className="pt-6 text-center">
                 <Leaf className="w-12 h-12 text-secondary mx-auto mb-2" />
-                <div className="text-3xl font-bold text-primary">{trees.length}</div>
+                <div className="text-3xl font-bold text-primary">
+                  {trees.reduce((sum, tree) => sum + (tree.tree_count || 1), 0)}
+                </div>
                 <div className="text-sm text-muted-foreground">Trees Planted</div>
               </CardContent>
             </Card>
