@@ -5,11 +5,13 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
+import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { Textarea } from "@/components/ui/textarea";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import { Session } from "@supabase/supabase-js";
 import { useNavigate } from "react-router-dom";
-import { Leaf, User, Calendar, Mail } from "lucide-react";
+import { Leaf, User, Calendar, Pencil, Trash2 } from "lucide-react";
 
 interface UserProfile {
   full_name: string;
@@ -23,6 +25,8 @@ interface Tree {
   planted_date: string;
   latitude: number;
   longitude: number;
+  tree_count: number;
+  notes: string | null;
 }
 
 const Profile = () => {
@@ -31,6 +35,11 @@ const Profile = () => {
   const [trees, setTrees] = useState<Tree[]>([]);
   const [fullName, setFullName] = useState("");
   const [loading, setLoading] = useState(false);
+  const [editingTree, setEditingTree] = useState<Tree | null>(null);
+  const [editSpecies, setEditSpecies] = useState("");
+  const [editTreeCount, setEditTreeCount] = useState(1);
+  const [editNotes, setEditNotes] = useState("");
+  const [deleteConfirmId, setDeleteConfirmId] = useState<string | null>(null);
   const navigate = useNavigate();
 
   useEffect(() => {
@@ -107,6 +116,53 @@ const Profile = () => {
     } else {
       toast.success("Profile updated successfully");
       fetchProfile();
+    }
+    setLoading(false);
+  };
+
+  const openEditDialog = (tree: Tree) => {
+    setEditingTree(tree);
+    setEditSpecies(tree.species || "");
+    setEditTreeCount(tree.tree_count || 1);
+    setEditNotes(tree.notes || "");
+  };
+
+  const handleUpdateTree = async () => {
+    if (!editingTree) return;
+
+    setLoading(true);
+    const { error } = await supabase
+      .from("trees")
+      .update({
+        species: editSpecies || null,
+        tree_count: editTreeCount,
+        notes: editNotes || null,
+      })
+      .eq("id", editingTree.id);
+
+    if (error) {
+      toast.error("Failed to update tree");
+    } else {
+      toast.success("Tree updated successfully");
+      setEditingTree(null);
+      fetchUserTrees();
+    }
+    setLoading(false);
+  };
+
+  const handleDeleteTree = async (treeId: string) => {
+    setLoading(true);
+    const { error } = await supabase
+      .from("trees")
+      .delete()
+      .eq("id", treeId);
+
+    if (error) {
+      toast.error("Failed to delete tree");
+    } else {
+      toast.success("Tree deleted successfully");
+      setDeleteConfirmId(null);
+      fetchUserTrees();
     }
     setLoading(false);
   };
@@ -208,11 +264,28 @@ const Profile = () => {
                       <div className="flex-1">
                         <h3 className="font-semibold">{tree.species || "Tree"}</h3>
                         <p className="text-sm text-muted-foreground">
-                          Planted on {new Date(tree.planted_date).toLocaleDateString()}
+                          {tree.tree_count} tree{tree.tree_count > 1 ? "s" : ""} • Planted on {new Date(tree.planted_date).toLocaleDateString()}
                         </p>
+                        {tree.notes && (
+                          <p className="text-xs text-muted-foreground mt-1">{tree.notes}</p>
+                        )}
                       </div>
-                      <div className="text-xs text-muted-foreground">
-                        {tree.latitude.toFixed(4)}, {tree.longitude.toFixed(4)}
+                      <div className="flex items-center gap-2">
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          onClick={() => openEditDialog(tree)}
+                        >
+                          <Pencil className="w-4 h-4" />
+                        </Button>
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          onClick={() => setDeleteConfirmId(tree.id)}
+                          className="text-destructive hover:text-destructive"
+                        >
+                          <Trash2 className="w-4 h-4" />
+                        </Button>
                       </div>
                     </div>
                   ))}
@@ -221,6 +294,71 @@ const Profile = () => {
             </CardContent>
           </Card>
         </div>
+        {/* Edit Tree Dialog */}
+        <Dialog open={!!editingTree} onOpenChange={() => setEditingTree(null)}>
+          <DialogContent>
+            <DialogHeader>
+              <DialogTitle>Edit Tree</DialogTitle>
+              <DialogDescription>Update the information for this tree planting.</DialogDescription>
+            </DialogHeader>
+            <div className="space-y-4 pt-4">
+              <div className="space-y-2">
+                <Label htmlFor="editSpecies">Species</Label>
+                <Input
+                  id="editSpecies"
+                  value={editSpecies}
+                  onChange={(e) => setEditSpecies(e.target.value)}
+                  placeholder="e.g., Oak, Pine, Maple"
+                />
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="editTreeCount">Number of Trees</Label>
+                <Input
+                  id="editTreeCount"
+                  type="number"
+                  min="1"
+                  value={editTreeCount}
+                  onChange={(e) => setEditTreeCount(parseInt(e.target.value) || 1)}
+                />
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="editNotes">Notes</Label>
+                <Textarea
+                  id="editNotes"
+                  value={editNotes}
+                  onChange={(e) => setEditNotes(e.target.value)}
+                  placeholder="Additional notes about this planting..."
+                />
+              </div>
+              <Button onClick={handleUpdateTree} disabled={loading} className="w-full" variant="hero">
+                {loading ? "Updating..." : "Save Changes"}
+              </Button>
+            </div>
+          </DialogContent>
+        </Dialog>
+
+        {/* Delete Confirmation Dialog */}
+        <Dialog open={!!deleteConfirmId} onOpenChange={() => setDeleteConfirmId(null)}>
+          <DialogContent>
+            <DialogHeader>
+              <DialogTitle>Delete Tree</DialogTitle>
+              <DialogDescription>Are you sure you want to delete this tree? This action cannot be undone.</DialogDescription>
+            </DialogHeader>
+            <div className="flex gap-3 pt-4">
+              <Button variant="outline" onClick={() => setDeleteConfirmId(null)} className="flex-1">
+                Cancel
+              </Button>
+              <Button
+                variant="destructive"
+                onClick={() => deleteConfirmId && handleDeleteTree(deleteConfirmId)}
+                disabled={loading}
+                className="flex-1"
+              >
+                {loading ? "Deleting..." : "Delete"}
+              </Button>
+            </div>
+          </DialogContent>
+        </Dialog>
       </div>
     </Layout>
   );
