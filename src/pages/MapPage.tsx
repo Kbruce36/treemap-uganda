@@ -186,18 +186,40 @@ const MapPage = () => {
   }, []); // No session dependency needed - using sessionRef instead
 
   const fetchTrees = async () => {
-    const { data, error } = await supabase
-      .from("trees")
-      .select(`
-        *,
-        profiles(full_name)
-      `)
-      .order("created_at", { ascending: false });
+    // Check if user is authenticated
+    const { data: { session: currentSession } } = await supabase.auth.getSession();
+    
+    if (currentSession) {
+      // Authenticated users can see full tree data with profiles
+      const { data, error } = await supabase
+        .from("trees")
+        .select(`
+          *,
+          profiles(full_name)
+        `)
+        .order("created_at", { ascending: false });
 
-    if (error) {
-      toast.error("Failed to load trees");
+      if (error) {
+        toast.error("Failed to load trees");
+      } else {
+        setTrees(data as Tree[]);
+      }
     } else {
-      setTrees(data as Tree[]);
+      // Anonymous users use the public view (no user_id exposed)
+      const { data, error } = await supabase
+        .from("trees_public")
+        .select("*")
+        .order("created_at", { ascending: false });
+
+      if (error) {
+        toast.error("Failed to load trees");
+      } else {
+        // Map public data to Tree interface (profiles will be empty)
+        setTrees((data || []).map(tree => ({
+          ...tree,
+          profiles: { full_name: 'Community Member' }
+        })) as Tree[]);
+      }
     }
   };
 

@@ -24,38 +24,62 @@ export const useStatistics = (): Statistics => {
     try {
       setStatistics(prev => ({ ...prev, loading: true, error: null }));
 
-      // Use Promise.all for parallel execution of queries
-      const [treesResult, plantersResult, speciesResult] = await Promise.all([
-        // Fetch total trees with tree_count to sum them
-        supabase.from('trees').select('tree_count'),
-        
-        // Fetch unique active planters
-        supabase.from('trees').select('user_id'),
-        
-        // Fetch unique tree species
-        supabase.from('trees').select('species').not('species', 'is', null)
-      ]);
-
-      if (treesResult.error) throw treesResult.error;
-      if (plantersResult.error) throw plantersResult.error;
-      if (speciesResult.error) throw speciesResult.error;
-
-      // Sum up all tree_count values to get total trees planted
-      const totalTreesPlanted = treesResult.data?.reduce((sum, tree) => sum + (tree.tree_count || 0), 0) || 0;
+      // Check if user is authenticated
+      const { data: { session } } = await supabase.auth.getSession();
       
-      const uniquePlanters = new Set(plantersResult.data?.map(tree => tree.user_id)).size;
-      const uniqueSpecies = new Set(
-        speciesResult.data?.map(tree => tree.species?.toLowerCase().trim()).filter(Boolean)
-      ).size;
+      if (session) {
+        // Authenticated users use the trees table
+        const [treesResult, plantersResult, speciesResult] = await Promise.all([
+          supabase.from('trees').select('tree_count'),
+          supabase.from('trees').select('user_id'),
+          supabase.from('trees').select('species').not('species', 'is', null)
+        ]);
 
-      setStatistics(prev => ({
-        ...prev,
-        totalTrees: totalTreesPlanted,
-        activePlanters: uniquePlanters,
-        treeSpecies: uniqueSpecies,
-        loading: false,
-        error: null,
-      }));
+        if (treesResult.error) throw treesResult.error;
+        if (plantersResult.error) throw plantersResult.error;
+        if (speciesResult.error) throw speciesResult.error;
+
+        const totalTreesPlanted = treesResult.data?.reduce((sum, tree) => sum + (tree.tree_count || 0), 0) || 0;
+        const uniquePlanters = new Set(plantersResult.data?.map(tree => tree.user_id)).size;
+        const uniqueSpecies = new Set(
+          speciesResult.data?.map(tree => tree.species?.toLowerCase().trim()).filter(Boolean)
+        ).size;
+
+        setStatistics(prev => ({
+          ...prev,
+          totalTrees: totalTreesPlanted,
+          activePlanters: uniquePlanters,
+          treeSpecies: uniqueSpecies,
+          loading: false,
+          error: null,
+        }));
+      } else {
+        // Anonymous users use trees_public view (no user_id)
+        const [treesResult, speciesResult, profilesResult] = await Promise.all([
+          supabase.from('trees_public').select('tree_count'),
+          supabase.from('trees_public').select('species').not('species', 'is', null),
+          supabase.from('profiles_public').select('id')
+        ]);
+
+        if (treesResult.error) throw treesResult.error;
+        if (speciesResult.error) throw speciesResult.error;
+        if (profilesResult.error) throw profilesResult.error;
+
+        const totalTreesPlanted = treesResult.data?.reduce((sum, tree) => sum + (tree.tree_count || 0), 0) || 0;
+        const uniquePlanters = profilesResult.data?.length || 0;
+        const uniqueSpecies = new Set(
+          speciesResult.data?.map(tree => tree.species?.toLowerCase().trim()).filter(Boolean)
+        ).size;
+
+        setStatistics(prev => ({
+          ...prev,
+          totalTrees: totalTreesPlanted,
+          activePlanters: uniquePlanters,
+          treeSpecies: uniqueSpecies,
+          loading: false,
+          error: null,
+        }));
+      }
     } catch (error) {
       console.error('Error fetching statistics:', error);
       setStatistics(prev => ({
