@@ -92,11 +92,74 @@ export type Database = {
             referencedRelation: "profiles"
             referencedColumns: ["id"]
           },
+          {
+            foreignKeyName: "trees_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "profiles_public"
+            referencedColumns: ["id"]
+          },
         ]
       }
     }
     Views: {
-      [_ in never]: never
+      profiles_public: {
+        Row: {
+          full_name: string | null
+          id: string | null
+        }
+        Insert: {
+          full_name?: string | null
+          id?: string | null
+        }
+        Update: {
+          full_name?: string | null
+          id?: string | null
+        }
+        Relationships: []
+      }
+      trees_public: {
+        Row: {
+          created_at: string | null
+          id: string | null
+          image_1: string | null
+          image_2: string | null
+          image_3: string | null
+          latitude: number | null
+          longitude: number | null
+          notes: string | null
+          planted_date: string | null
+          species: string | null
+          tree_count: number | null
+        }
+        Insert: {
+          created_at?: string | null
+          id?: string | null
+          image_1?: string | null
+          image_2?: string | null
+          image_3?: string | null
+          latitude?: number | null
+          longitude?: number | null
+          notes?: string | null
+          planted_date?: string | null
+          species?: string | null
+          tree_count?: number | null
+        }
+        Update: {
+          created_at?: string | null
+          id?: string | null
+          image_1?: string | null
+          image_2?: string | null
+          image_3?: string | null
+          latitude?: number | null
+          longitude?: number | null
+          notes?: string | null
+          planted_date?: string | null
+          species?: string | null
+          tree_count?: number | null
+        }
+        Relationships: []
+      }
     }
     Functions: {
       [_ in never]: never
