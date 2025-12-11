@@ -25,38 +25,67 @@ const Leaderboard = () => {
 
   const fetchLeaderboard = async () => {
     try {
-      const { data, error } = await supabase
-        .from("trees")
-        .select(`
-          user_id,
-          tree_count,
-          profiles(full_name, email)
-        `);
+      // Check if user is authenticated
+      const { data: { session } } = await supabase.auth.getSession();
+      
+      if (session) {
+        // Authenticated users can see full data
+        const { data, error } = await supabase
+          .from("trees")
+          .select(`
+            user_id,
+            tree_count,
+            profiles(full_name, email)
+          `);
 
-      if (error) throw error;
+        if (error) throw error;
 
-      const counts = data.reduce((acc: any, tree: any) => {
-        const userId = tree.user_id;
-        // Skip entries without valid profile data
-        if (!tree.profiles) return acc;
+        const counts = data.reduce((acc: any, tree: any) => {
+          const userId = tree.user_id;
+          if (!tree.profiles) return acc;
+          
+          if (!acc[userId]) {
+            acc[userId] = {
+              user_id: userId,
+              full_name: tree.profiles.full_name || 'Unknown',
+              email: tree.profiles.email || '',
+              tree_count: 0,
+            };
+          }
+          acc[userId].tree_count += tree.tree_count || 1;
+          return acc;
+        }, {});
+
+        const sorted = Object.values(counts).sort(
+          (a: any, b: any) => b.tree_count - a.tree_count
+        ) as LeaderboardEntry[];
+
+        setLeaderboard(sorted);
+      } else {
+        // Anonymous users: use public views
+        const [treesRes, profilesRes] = await Promise.all([
+          supabase.from("trees_public").select("tree_count"),
+          supabase.from("profiles_public").select("id, full_name")
+        ]);
+
+        if (treesRes.error) throw treesRes.error;
+        if (profilesRes.error) throw profilesRes.error;
+
+        // For anonymous users, show aggregate stats without user details
+        const totalTrees = treesRes.data?.reduce((sum, t) => sum + (t.tree_count || 1), 0) || 0;
         
-        if (!acc[userId]) {
-          acc[userId] = {
-            user_id: userId,
-            full_name: tree.profiles.full_name || 'Unknown',
-            email: tree.profiles.email || '',
-            tree_count: 0,
-          };
+        // Show a summary entry for anonymous users
+        if (totalTrees > 0) {
+          setLeaderboard([{
+            user_id: 'community',
+            full_name: 'Community Total',
+            email: 'Sign in to see individual planters',
+            tree_count: totalTrees
+          }]);
+        } else {
+          setLeaderboard([]);
         }
-        acc[userId].tree_count += tree.tree_count || 1;
-        return acc;
-      }, {});
-
-      const sorted = Object.values(counts).sort(
-        (a: any, b: any) => b.tree_count - a.tree_count
-      ) as LeaderboardEntry[];
-
-      setLeaderboard(sorted);
+      }
     } catch (error: any) {
       toast.error("Failed to load leaderboard");
     } finally {
@@ -103,8 +132,10 @@ const Leaderboard = () => {
                   {leaderboard.map((entry, index) => (
                     <div
                       key={entry.user_id}
-                      onClick={() => navigate(`/user/${entry.user_id}/trees`)}
-                      className={`flex items-center gap-2 md:gap-4 p-3 md:p-4 rounded-lg transition-all hover:bg-muted/50 cursor-pointer ${
+                      onClick={() => entry.user_id !== 'community' && navigate(`/user/${entry.user_id}/trees`)}
+                      className={`flex items-center gap-2 md:gap-4 p-3 md:p-4 rounded-lg transition-all ${
+                        entry.user_id !== 'community' ? 'hover:bg-muted/50 cursor-pointer' : ''
+                      } ${
                         index < 3 ? "bg-muted/30 border-2 border-primary/20" : "bg-muted/10"
                       }`}
                     >
