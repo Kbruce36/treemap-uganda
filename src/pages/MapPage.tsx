@@ -58,7 +58,12 @@ const MapPage = () => {
   const mapInstanceRef = useRef<L.Map | null>(null);
   const markersRef = useRef<L.Marker[]>([]);
   const newTreeMarkerRef = useRef<L.Marker | null>(null);
+  const sessionRef = useRef<Session | null>(null);
   
+  // Keep ref in sync with session state
+  useEffect(() => {
+    sessionRef.current = session;
+  }, [session]);
   const treeId = searchParams.get('treeId');
   const focusLat = searchParams.get('lat');
   const focusLng = searchParams.get('lng');
@@ -136,7 +141,8 @@ const MapPage = () => {
     if (!map) return;
 
     const handleMapClick = (e: L.LeafletMouseEvent) => {
-      if (!session) {
+      // Use ref to get current session value (avoids stale closure)
+      if (!sessionRef.current) {
         toast.info("Please sign in to plant trees");
         return;
       }
@@ -177,7 +183,7 @@ const MapPage = () => {
     return () => {
       map.off('click', handleMapClick);
     };
-  }, [session]);
+  }, []); // No session dependency needed - using sessionRef instead
 
   const fetchTrees = async () => {
     const { data, error } = await supabase
