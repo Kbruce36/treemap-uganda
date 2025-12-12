@@ -89,13 +89,6 @@ export type Database = {
             foreignKeyName: "trees_user_id_fkey"
             columns: ["user_id"]
             isOneToOne: false
-            referencedRelation: "leaderboard_public"
-            referencedColumns: ["user_id"]
-          },
-          {
-            foreignKeyName: "trees_user_id_fkey"
-            columns: ["user_id"]
-            isOneToOne: false
             referencedRelation: "profiles"
             referencedColumns: ["id"]
           },
@@ -220,13 +213,6 @@ export type Database = {
             foreignKeyName: "trees_user_id_fkey"
             columns: ["user_id"]
             isOneToOne: false
-            referencedRelation: "leaderboard_public"
-            referencedColumns: ["user_id"]
-          },
-          {
-            foreignKeyName: "trees_user_id_fkey"
-            columns: ["user_id"]
-            isOneToOne: false
             referencedRelation: "profiles"
             referencedColumns: ["id"]
           },
@@ -241,7 +227,14 @@ export type Database = {
       }
     }
     Functions: {
-      [_ in never]: never
+      get_leaderboard: {
+        Args: never
+        Returns: {
+          full_name: string
+          total_trees: number
+          user_id: string
+        }[]
+      }
     }
     Enums: {
       [_ in never]: never
