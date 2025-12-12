@@ -25,59 +25,22 @@ const Leaderboard = () => {
 
   const fetchLeaderboard = async () => {
     try {
-      // Check if user is authenticated
-      const { data: { session } } = await supabase.auth.getSession();
-      
-      if (session) {
-        // Authenticated users can see full data including email
-        const { data, error } = await supabase
-          .from("trees")
-          .select(`
-            user_id,
-            tree_count,
-            profiles(full_name, email)
-          `);
+      // Use public leaderboard view for everyone - shows all users' progress
+      const { data, error } = await supabase
+        .from("leaderboard_public")
+        .select("user_id, full_name, total_trees")
+        .order("total_trees", { ascending: false });
 
-        if (error) throw error;
+      if (error) throw error;
 
-        const counts = data.reduce((acc: any, tree: any) => {
-          const userId = tree.user_id;
-          if (!tree.profiles) return acc;
-          
-          if (!acc[userId]) {
-            acc[userId] = {
-              user_id: userId,
-              full_name: tree.profiles.full_name || 'Unknown',
-              email: tree.profiles.email || '',
-              tree_count: 0,
-            };
-          }
-          acc[userId].tree_count += tree.tree_count || 1;
-          return acc;
-        }, {});
+      const entries: LeaderboardEntry[] = (data || []).map((row: any) => ({
+        user_id: row.user_id,
+        full_name: row.full_name || 'Unknown',
+        email: '',
+        tree_count: row.total_trees || 0
+      }));
 
-        const sorted = Object.values(counts).sort(
-          (a: any, b: any) => b.tree_count - a.tree_count
-        ) as LeaderboardEntry[];
-
-        setLeaderboard(sorted);
-      } else {
-        // Anonymous users: use public leaderboard view
-        const { data, error } = await supabase
-          .from("leaderboard_public")
-          .select("user_id, full_name, total_trees");
-
-        if (error) throw error;
-
-        const entries: LeaderboardEntry[] = (data || []).map((row: any) => ({
-          user_id: row.user_id,
-          full_name: row.full_name || 'Unknown',
-          email: '', // Don't show email to anonymous users
-          tree_count: row.total_trees
-        }));
-
-        setLeaderboard(entries);
-      }
+      setLeaderboard(entries);
     } catch (error: any) {
       toast.error("Failed to load leaderboard");
     } finally {
