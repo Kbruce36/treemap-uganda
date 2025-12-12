@@ -41,8 +41,8 @@ export const Layout = ({ children }: { children: React.ReactNode }) => {
       // Session already cleared - that's fine
     }
     
-    // Always navigate to auth with logout flag to ensure clean state
-    navigate("/auth?logout=true", { replace: true });
+    // Navigate to home page after logout
+    navigate("/", { replace: true });
   };
 
   const navItems = [
