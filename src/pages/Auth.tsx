@@ -27,58 +27,29 @@ const Auth = () => {
   const hasCheckedSession = useRef(false);
 
   useEffect(() => {
-    // Only run session check once
+    // Only run once
     if (hasCheckedSession.current) return;
     hasCheckedSession.current = true;
 
-    const checkSession = async () => {
+    const clearAndShowForm = async () => {
       try {
-        // Check if user is coming from a logout action
-        const fromLogout = searchParams.get("logout") === "true";
-        
-        if (fromLogout) {
-          // Clear any existing session when explicitly logged out
-          await supabase.auth.signOut();
-          // Clear URL param without triggering navigation
-          window.history.replaceState({}, '', '/auth');
-          setCheckingSession(false);
-          return;
-        }
-
-        // Check for existing valid session
-        const { data: { session }, error } = await supabase.auth.getSession();
-        
-        if (error) {
-          // Session error - clear it
-          await supabase.auth.signOut();
-          setCheckingSession(false);
-          return;
-        }
-
-        if (session) {
-          // Verify the session is actually valid by making a test request
-          const { error: verifyError } = await supabase.auth.getUser();
-          
-          if (verifyError) {
-            // Session is invalid, clear it
-            await supabase.auth.signOut();
-            setCheckingSession(false);
-            return;
-          }
-
-          // Valid session exists, redirect
-          navigate("/map", { replace: true });
-          return;
-        }
-        
-        setCheckingSession(false);
+        // ALWAYS clear any existing session when loading auth page
+        // This ensures users must explicitly sign in - no auto-login from cache
+        await supabase.auth.signOut({ scope: 'local' });
       } catch {
-        setCheckingSession(false);
+        // Ignore errors
       }
+      
+      // Clear any logout param from URL
+      if (searchParams.get("logout") === "true") {
+        window.history.replaceState({}, '', '/auth');
+      }
+      
+      setCheckingSession(false);
     };
 
-    checkSession();
-  }, [navigate, searchParams]);
+    clearAndShowForm();
+  }, [searchParams]);
 
   // Listen for auth state changes after initial check - only respond when NOT checking session
   useEffect(() => {
