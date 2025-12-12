@@ -1,4 +1,4 @@
-import { Link, useLocation } from "react-router-dom";
+import { Link, useLocation, useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { useEffect, useState } from "react";
@@ -8,12 +8,18 @@ import { Leaf, Map, Trophy, User, LogOut } from "lucide-react";
 
 export const Layout = ({ children }: { children: React.ReactNode }) => {
   const location = useLocation();
+  const navigate = useNavigate();
   const [session, setSession] = useState<Session | null>(null);
 
   useEffect(() => {
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
       (event, session) => {
         setSession(session);
+        
+        // On sign out, redirect to home
+        if (event === "SIGNED_OUT") {
+          navigate("/", { replace: true });
+        }
       }
     );
 
@@ -22,16 +28,21 @@ export const Layout = ({ children }: { children: React.ReactNode }) => {
     });
 
     return () => subscription.unsubscribe();
-  }, []);
+  }, [navigate]);
 
   const handleSignOut = async () => {
     try {
+      // Clear local state first
+      setSession(null);
+      
+      // Attempt server-side logout (may fail if session already invalid)
       await supabase.auth.signOut();
-    } catch (error) {
-      // If session not found, clear local state anyway
-      console.log("Session already cleared");
+    } catch {
+      // Session already cleared - that's fine
     }
-    setSession(null);
+    
+    // Always navigate to auth with logout flag to ensure clean state
+    navigate("/auth?logout=true", { replace: true });
   };
 
   const navItems = [
