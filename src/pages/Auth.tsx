@@ -1,5 +1,5 @@
-import { useState, useEffect } from "react";
-import { useNavigate } from "react-router-dom";
+import { useState, useEffect, useRef } from "react";
+import { useNavigate, useSearchParams } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -7,50 +7,133 @@ import { Label } from "@/components/ui/label";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { toast } from "sonner";
 import { Leaf } from "lucide-react";
-import { Session } from "@supabase/supabase-js";
+import { z } from "zod";
+
+// Input validation schemas
+const emailSchema = z.string().trim().email("Please enter a valid email address").max(255, "Email is too long");
+const passwordSchema = z.string().min(6, "Password must be at least 6 characters").max(72, "Password is too long");
+const fullNameSchema = z.string().trim().min(1, "Name is required").max(100, "Name is too long");
 
 const Auth = () => {
   const [isSignUp, setIsSignUp] = useState(false);
   const [loading, setLoading] = useState(false);
+  const [checkingSession, setCheckingSession] = useState(true);
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [fullName, setFullName] = useState("");
-  const [session, setSession] = useState<Session | null>(null);
+  const [errors, setErrors] = useState<{ email?: string; password?: string; fullName?: string }>({});
   const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
+  const hasCheckedSession = useRef(false);
 
+  useEffect(() => {
+    // Only run session check once
+    if (hasCheckedSession.current) return;
+    hasCheckedSession.current = true;
+
+    const checkSession = async () => {
+      try {
+        // Check if user is coming from a logout action
+        const fromLogout = searchParams.get("logout") === "true";
+        
+        if (fromLogout) {
+          // Clear any existing session when explicitly logged out
+          await supabase.auth.signOut();
+          setCheckingSession(false);
+          return;
+        }
+
+        // Check for existing valid session
+        const { data: { session }, error } = await supabase.auth.getSession();
+        
+        if (error) {
+          // Session error - clear it
+          await supabase.auth.signOut();
+          setCheckingSession(false);
+          return;
+        }
+
+        if (session) {
+          // Verify the session is actually valid by making a test request
+          const { error: verifyError } = await supabase.auth.getUser();
+          
+          if (verifyError) {
+            // Session is invalid, clear it
+            await supabase.auth.signOut();
+            setCheckingSession(false);
+            return;
+          }
+
+          // Valid session exists, redirect
+          navigate("/map", { replace: true });
+          return;
+        }
+        
+        setCheckingSession(false);
+      } catch {
+        setCheckingSession(false);
+      }
+    };
+
+    checkSession();
+  }, [navigate, searchParams]);
+
+  // Listen for auth state changes after initial check
   useEffect(() => {
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
       (event, session) => {
-        setSession(session);
-        if (session) {
-          navigate("/map");
+        // Only redirect on SIGNED_IN event to avoid loops
+        if (event === "SIGNED_IN" && session) {
+          navigate("/map", { replace: true });
         }
       }
     );
 
-    supabase.auth.getSession().then(({ data: { session } }) => {
-      setSession(session);
-      if (session) {
-        navigate("/map");
-      }
-    });
-
     return () => subscription.unsubscribe();
   }, [navigate]);
 
+  const validateInputs = (): boolean => {
+    const newErrors: { email?: string; password?: string; fullName?: string } = {};
+    
+    const emailResult = emailSchema.safeParse(email);
+    if (!emailResult.success) {
+      newErrors.email = emailResult.error.errors[0].message;
+    }
+
+    const passwordResult = passwordSchema.safeParse(password);
+    if (!passwordResult.success) {
+      newErrors.password = passwordResult.error.errors[0].message;
+    }
+
+    if (isSignUp) {
+      const nameResult = fullNameSchema.safeParse(fullName);
+      if (!nameResult.success) {
+        newErrors.fullName = nameResult.error.errors[0].message;
+      }
+    }
+
+    setErrors(newErrors);
+    return Object.keys(newErrors).length === 0;
+  };
+
   const handleAuth = async (e: React.FormEvent) => {
     e.preventDefault();
+    
+    if (!validateInputs()) {
+      return;
+    }
+
     setLoading(true);
 
     try {
       if (isSignUp) {
-        const { data, error } = await supabase.auth.signUp({
-          email,
+        const { error } = await supabase.auth.signUp({
+          email: email.trim(),
           password,
           options: {
             emailRedirectTo: `${window.location.origin}/`,
             data: {
-              full_name: fullName,
+              full_name: fullName.trim(),
             },
           },
         });
@@ -63,11 +146,10 @@ const Auth = () => {
           }
         } else {
           toast.success("Account created successfully! Redirecting...");
-          // Session will be automatically handled by onAuthStateChange
         }
       } else {
-        const { data, error } = await supabase.auth.signInWithPassword({
-          email,
+        const { error } = await supabase.auth.signInWithPassword({
+          email: email.trim(),
           password,
         });
 
@@ -79,15 +161,27 @@ const Auth = () => {
           }
         } else {
           toast.success("Welcome back!");
-          // Session will be automatically handled by onAuthStateChange
         }
       }
-    } catch (error: any) {
-      toast.error(error.message || "An error occurred");
+    } catch (error: unknown) {
+      const message = error instanceof Error ? error.message : "An error occurred";
+      toast.error(message);
     } finally {
       setLoading(false);
     }
   };
+
+  // Show loading while checking session
+  if (checkingSession) {
+    return (
+      <div className="min-h-screen flex items-center justify-center gradient-subtle">
+        <div className="flex flex-col items-center gap-4">
+          <Leaf className="w-12 h-12 text-primary animate-pulse" />
+          <p className="text-muted-foreground">Loading...</p>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-screen flex items-center justify-center gradient-subtle p-4">
@@ -115,9 +209,15 @@ const Auth = () => {
                   type="text"
                   placeholder="John Doe"
                   value={fullName}
-                  onChange={(e) => setFullName(e.target.value)}
-                  required={isSignUp}
+                  onChange={(e) => {
+                    setFullName(e.target.value);
+                    if (errors.fullName) setErrors(prev => ({ ...prev, fullName: undefined }));
+                  }}
+                  aria-invalid={!!errors.fullName}
                 />
+                {errors.fullName && (
+                  <p className="text-sm text-destructive">{errors.fullName}</p>
+                )}
               </div>
             )}
             <div className="space-y-2">
@@ -127,9 +227,15 @@ const Auth = () => {
                 type="email"
                 placeholder="you@example.com"
                 value={email}
-                onChange={(e) => setEmail(e.target.value)}
-                required
+                onChange={(e) => {
+                  setEmail(e.target.value);
+                  if (errors.email) setErrors(prev => ({ ...prev, email: undefined }));
+                }}
+                aria-invalid={!!errors.email}
               />
+              {errors.email && (
+                <p className="text-sm text-destructive">{errors.email}</p>
+              )}
             </div>
             <div className="space-y-2">
               <Label htmlFor="password">Password</Label>
@@ -138,10 +244,15 @@ const Auth = () => {
                 type="password"
                 placeholder="••••••••"
                 value={password}
-                onChange={(e) => setPassword(e.target.value)}
-                required
-                minLength={6}
+                onChange={(e) => {
+                  setPassword(e.target.value);
+                  if (errors.password) setErrors(prev => ({ ...prev, password: undefined }));
+                }}
+                aria-invalid={!!errors.password}
               />
+              {errors.password && (
+                <p className="text-sm text-destructive">{errors.password}</p>
+              )}
             </div>
             <Button type="submit" className="w-full" disabled={loading} variant="hero" size="lg">
               {loading ? "Loading..." : isSignUp ? "Sign Up" : "Sign In"}
@@ -151,7 +262,10 @@ const Auth = () => {
           <div className="mt-6 text-center text-sm">
             <button
               type="button"
-              onClick={() => setIsSignUp(!isSignUp)}
+              onClick={() => {
+                setIsSignUp(!isSignUp);
+                setErrors({});
+              }}
               className="text-primary hover:underline font-medium"
             >
               {isSignUp ? "Already have an account? Sign In" : "Don't have an account? Sign Up"}
