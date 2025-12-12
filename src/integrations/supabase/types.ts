@@ -125,32 +125,6 @@ export type Database = {
           species: string | null
           tree_count: number | null
         }
-        Insert: {
-          created_at?: string | null
-          id?: string | null
-          image_1?: string | null
-          image_2?: string | null
-          image_3?: string | null
-          latitude?: number | null
-          longitude?: number | null
-          notes?: string | null
-          planted_date?: string | null
-          species?: string | null
-          tree_count?: number | null
-        }
-        Update: {
-          created_at?: string | null
-          id?: string | null
-          image_1?: string | null
-          image_2?: string | null
-          image_3?: string | null
-          latitude?: number | null
-          longitude?: number | null
-          notes?: string | null
-          planted_date?: string | null
-          species?: string | null
-          tree_count?: number | null
-        }
         Relationships: []
       }
       user_trees_public: {
@@ -184,6 +158,22 @@ export type Database = {
         Returns: {
           full_name: string
           id: string
+        }[]
+      }
+      get_trees_public: {
+        Args: never
+        Returns: {
+          created_at: string
+          id: string
+          image_1: string
+          image_2: string
+          image_3: string
+          latitude: number
+          longitude: number
+          notes: string
+          planted_date: string
+          species: string
+          tree_count: number
         }[]
       }
       get_user_trees_public: {
