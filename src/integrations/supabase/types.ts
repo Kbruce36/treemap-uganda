@@ -92,13 +92,6 @@ export type Database = {
             referencedRelation: "profiles"
             referencedColumns: ["id"]
           },
-          {
-            foreignKeyName: "trees_user_id_fkey"
-            columns: ["user_id"]
-            isOneToOne: false
-            referencedRelation: "profiles_public"
-            referencedColumns: ["id"]
-          },
         ]
       }
     }
@@ -115,14 +108,6 @@ export type Database = {
         Row: {
           full_name: string | null
           id: string | null
-        }
-        Insert: {
-          full_name?: string | null
-          id?: string | null
-        }
-        Update: {
-          full_name?: string | null
-          id?: string | null
         }
         Relationships: []
       }
@@ -182,48 +167,7 @@ export type Database = {
           tree_count: number | null
           user_id: string | null
         }
-        Insert: {
-          id?: string | null
-          image_1?: string | null
-          image_2?: string | null
-          image_3?: string | null
-          latitude?: number | null
-          longitude?: number | null
-          notes?: string | null
-          planted_date?: string | null
-          species?: string | null
-          tree_count?: number | null
-          user_id?: string | null
-        }
-        Update: {
-          id?: string | null
-          image_1?: string | null
-          image_2?: string | null
-          image_3?: string | null
-          latitude?: number | null
-          longitude?: number | null
-          notes?: string | null
-          planted_date?: string | null
-          species?: string | null
-          tree_count?: number | null
-          user_id?: string | null
-        }
-        Relationships: [
-          {
-            foreignKeyName: "trees_user_id_fkey"
-            columns: ["user_id"]
-            isOneToOne: false
-            referencedRelation: "profiles"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "trees_user_id_fkey"
-            columns: ["user_id"]
-            isOneToOne: false
-            referencedRelation: "profiles_public"
-            referencedColumns: ["id"]
-          },
-        ]
+        Relationships: []
       }
     }
     Functions: {
@@ -232,6 +176,29 @@ export type Database = {
         Returns: {
           full_name: string
           total_trees: number
+          user_id: string
+        }[]
+      }
+      get_profiles_public: {
+        Args: never
+        Returns: {
+          full_name: string
+          id: string
+        }[]
+      }
+      get_user_trees_public: {
+        Args: never
+        Returns: {
+          id: string
+          image_1: string
+          image_2: string
+          image_3: string
+          latitude: number
+          longitude: number
+          notes: string
+          planted_date: string
+          species: string
+          tree_count: number
           user_id: string
         }[]
       }
