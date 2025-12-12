@@ -35,6 +35,7 @@ const Profile = () => {
   const [trees, setTrees] = useState<Tree[]>([]);
   const [fullName, setFullName] = useState("");
   const [loading, setLoading] = useState(false);
+  const [checkingAuth, setCheckingAuth] = useState(true);
   const [editingTree, setEditingTree] = useState<Tree | null>(null);
   const [editSpecies, setEditSpecies] = useState("");
   const [editTreeCount, setEditTreeCount] = useState(1);
@@ -46,16 +47,18 @@ const Profile = () => {
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
       (event, session) => {
         setSession(session);
+        setCheckingAuth(false);
         if (!session) {
-          navigate("/auth");
+          navigate("/auth", { replace: true });
         }
       }
     );
 
     supabase.auth.getSession().then(({ data: { session } }) => {
       setSession(session);
+      setCheckingAuth(false);
       if (!session) {
-        navigate("/auth");
+        navigate("/auth", { replace: true });
       }
     });
 
@@ -167,8 +170,30 @@ const Profile = () => {
     setLoading(false);
   };
 
-  if (!session || !profile) {
-    return null;
+  if (checkingAuth || !session) {
+    return (
+      <Layout>
+        <div className="container mx-auto px-4 py-8 flex items-center justify-center min-h-[50vh]">
+          <div className="flex flex-col items-center gap-4">
+            <Leaf className="w-12 h-12 text-primary animate-pulse" />
+            <p className="text-muted-foreground">Loading...</p>
+          </div>
+        </div>
+      </Layout>
+    );
+  }
+
+  if (!profile) {
+    return (
+      <Layout>
+        <div className="container mx-auto px-4 py-8 flex items-center justify-center min-h-[50vh]">
+          <div className="flex flex-col items-center gap-4">
+            <Leaf className="w-12 h-12 text-primary animate-pulse" />
+            <p className="text-muted-foreground">Loading profile...</p>
+          </div>
+        </div>
+      </Layout>
+    );
   }
 
   return (
