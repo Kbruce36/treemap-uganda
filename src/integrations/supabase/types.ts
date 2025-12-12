@@ -175,6 +175,70 @@ export type Database = {
         }
         Relationships: []
       }
+      user_trees_public: {
+        Row: {
+          id: string | null
+          image_1: string | null
+          image_2: string | null
+          image_3: string | null
+          latitude: number | null
+          longitude: number | null
+          notes: string | null
+          planted_date: string | null
+          species: string | null
+          tree_count: number | null
+          user_id: string | null
+        }
+        Insert: {
+          id?: string | null
+          image_1?: string | null
+          image_2?: string | null
+          image_3?: string | null
+          latitude?: number | null
+          longitude?: number | null
+          notes?: string | null
+          planted_date?: string | null
+          species?: string | null
+          tree_count?: number | null
+          user_id?: string | null
+        }
+        Update: {
+          id?: string | null
+          image_1?: string | null
+          image_2?: string | null
+          image_3?: string | null
+          latitude?: number | null
+          longitude?: number | null
+          notes?: string | null
+          planted_date?: string | null
+          species?: string | null
+          tree_count?: number | null
+          user_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "trees_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "leaderboard_public"
+            referencedColumns: ["user_id"]
+          },
+          {
+            foreignKeyName: "trees_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "trees_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "profiles_public"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
     }
     Functions: {
       [_ in never]: never
