@@ -25,7 +25,13 @@ export const Layout = ({ children }: { children: React.ReactNode }) => {
   }, []);
 
   const handleSignOut = async () => {
-    await supabase.auth.signOut();
+    try {
+      await supabase.auth.signOut();
+    } catch (error) {
+      // If session not found, clear local state anyway
+      console.log("Session already cleared");
+    }
+    setSession(null);
   };
 
   const navItems = [
