@@ -57,8 +57,7 @@ const UserTrees = () => {
         setUserProfile({ full_name: profileData.full_name || 'Unknown', email: '' });
       }
 
-      // Fetch user's trees - use trees table with user_id filter
-      // For anonymous users, we need a view that includes user_id
+      // Fetch user's trees
       if (session) {
         const { data: treesData, error: treesError } = await supabase
           .from("trees")
@@ -69,10 +68,9 @@ const UserTrees = () => {
         if (treesError) throw treesError;
         setTrees(treesData || []);
       } else {
-        // Anonymous users need a different approach - query trees_public and match by user
-        // We need to create a view that exposes user_id for public access
+        // Anonymous users use the public view
         const { data: treesData, error: treesError } = await supabase
-          .from("trees")
+          .from("user_trees_public")
           .select("id, species, latitude, longitude, planted_date, notes")
           .eq("user_id", userId)
           .order("planted_date", { ascending: false });
