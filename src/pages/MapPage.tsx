@@ -89,7 +89,12 @@ const MapPage = () => {
   useEffect(() => {
     if (!mapContainerRef.current || mapInstanceRef.current) return;
 
-    const map = L.map(mapContainerRef.current).setView([0, 0], 2);
+    // If we have focus coordinates from URL, use those as initial view
+    const initialLat = focusLat ? parseFloat(focusLat) : 0;
+    const initialLng = focusLng ? parseFloat(focusLng) : 0;
+    const initialZoom = focusLat && focusLng ? 18 : 2;
+
+    const map = L.map(mapContainerRef.current).setView([initialLat, initialLng], initialZoom);
 
     L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png", {
       attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors',
@@ -102,29 +107,28 @@ const MapPage = () => {
     });
     window.addEventListener('resize', handleResize);
 
-    // Try to locate user with high accuracy
-    map.locate({ setView: true, maxZoom: 18, enableHighAccuracy: true });
+    // Only try to locate user if NOT navigating to a specific tree
+    if (!focusLat && !focusLng) {
+      map.locate({ setView: true, maxZoom: 18, enableHighAccuracy: true });
 
-    // When location is found
-    map.on('locationfound', (e) => {
-      // Explicitly set view to user location with good zoom
-      map.setView(e.latlng, 18);
-      
-      // Add a blue marker for user's current location
-      L.circleMarker(e.latlng, {
-        color: '#3b82f6',
-        fillColor: '#3b82f6',
-        fillOpacity: 0.5,
-        radius: 8
-      }).addTo(map).bindPopup("Your current location");
-      
-      toast.success("Location found! Click anywhere on the map to place a tree marker.");
-    });
+      // When location is found
+      map.on('locationfound', (e) => {
+        map.setView(e.latlng, 18);
+        
+        L.circleMarker(e.latlng, {
+          color: '#3b82f6',
+          fillColor: '#3b82f6',
+          fillOpacity: 0.5,
+          radius: 8
+        }).addTo(map).bindPopup("Your current location");
+        
+        toast.success("Location found! Click anywhere on the map to place a tree marker.");
+      });
 
-    // If location fails
-    map.on('locationerror', () => {
-      toast.error("Location access denied or unavailable.");
-    });
+      map.on('locationerror', () => {
+        toast.error("Location access denied or unavailable.");
+      });
+    }
 
     mapInstanceRef.current = map;
 
@@ -133,7 +137,7 @@ const MapPage = () => {
       map.remove();
       mapInstanceRef.current = null;
     };
-  }, []);
+  }, [focusLat, focusLng]);
 
   // Handle map clicks separately, with session in dependency array
   useEffect(() => {
