@@ -34,25 +34,52 @@ const UserTrees = () => {
 
   const fetchUserTrees = async () => {
     try {
-      // Fetch user profile
-      const { data: profileData, error: profileError } = await supabase
-        .from("profiles")
-        .select("full_name, email")
-        .eq("id", userId)
-        .single();
+      const { data: { session } } = await supabase.auth.getSession();
+      
+      // Fetch user profile - use public view for anonymous users
+      if (session) {
+        const { data: profileData, error: profileError } = await supabase
+          .from("profiles")
+          .select("full_name, email")
+          .eq("id", userId)
+          .single();
 
-      if (profileError) throw profileError;
-      setUserProfile(profileData);
+        if (profileError) throw profileError;
+        setUserProfile(profileData);
+      } else {
+        const { data: profileData, error: profileError } = await supabase
+          .from("profiles_public")
+          .select("full_name")
+          .eq("id", userId)
+          .single();
 
-      // Fetch user's trees
-      const { data: treesData, error: treesError } = await supabase
-        .from("trees")
-        .select("id, species, latitude, longitude, planted_date, notes")
-        .eq("user_id", userId)
-        .order("planted_date", { ascending: false });
+        if (profileError) throw profileError;
+        setUserProfile({ full_name: profileData.full_name || 'Unknown', email: '' });
+      }
 
-      if (treesError) throw treesError;
-      setTrees(treesData);
+      // Fetch user's trees - use trees table with user_id filter
+      // For anonymous users, we need a view that includes user_id
+      if (session) {
+        const { data: treesData, error: treesError } = await supabase
+          .from("trees")
+          .select("id, species, latitude, longitude, planted_date, notes")
+          .eq("user_id", userId)
+          .order("planted_date", { ascending: false });
+
+        if (treesError) throw treesError;
+        setTrees(treesData || []);
+      } else {
+        // Anonymous users need a different approach - query trees_public and match by user
+        // We need to create a view that exposes user_id for public access
+        const { data: treesData, error: treesError } = await supabase
+          .from("trees")
+          .select("id, species, latitude, longitude, planted_date, notes")
+          .eq("user_id", userId)
+          .order("planted_date", { ascending: false });
+
+        if (treesError) throw treesError;
+        setTrees(treesData || []);
+      }
     } catch (error: any) {
       toast.error("Failed to load user trees");
     } finally {

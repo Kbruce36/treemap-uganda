@@ -29,7 +29,7 @@ const Leaderboard = () => {
       const { data: { session } } = await supabase.auth.getSession();
       
       if (session) {
-        // Authenticated users can see full data
+        // Authenticated users can see full data including email
         const { data, error } = await supabase
           .from("trees")
           .select(`
@@ -62,29 +62,21 @@ const Leaderboard = () => {
 
         setLeaderboard(sorted);
       } else {
-        // Anonymous users: use public views
-        const [treesRes, profilesRes] = await Promise.all([
-          supabase.from("trees_public").select("tree_count"),
-          supabase.from("profiles_public").select("id, full_name")
-        ]);
+        // Anonymous users: use public leaderboard view
+        const { data, error } = await supabase
+          .from("leaderboard_public")
+          .select("user_id, full_name, total_trees");
 
-        if (treesRes.error) throw treesRes.error;
-        if (profilesRes.error) throw profilesRes.error;
+        if (error) throw error;
 
-        // For anonymous users, show aggregate stats without user details
-        const totalTrees = treesRes.data?.reduce((sum, t) => sum + (t.tree_count || 1), 0) || 0;
-        
-        // Show a summary entry for anonymous users
-        if (totalTrees > 0) {
-          setLeaderboard([{
-            user_id: 'community',
-            full_name: 'Community Total',
-            email: 'Sign in to see individual planters',
-            tree_count: totalTrees
-          }]);
-        } else {
-          setLeaderboard([]);
-        }
+        const entries: LeaderboardEntry[] = (data || []).map((row: any) => ({
+          user_id: row.user_id,
+          full_name: row.full_name || 'Unknown',
+          email: '', // Don't show email to anonymous users
+          tree_count: row.total_trees
+        }));
+
+        setLeaderboard(entries);
       }
     } catch (error: any) {
       toast.error("Failed to load leaderboard");

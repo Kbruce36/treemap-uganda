@@ -89,6 +89,13 @@ export type Database = {
             foreignKeyName: "trees_user_id_fkey"
             columns: ["user_id"]
             isOneToOne: false
+            referencedRelation: "leaderboard_public"
+            referencedColumns: ["user_id"]
+          },
+          {
+            foreignKeyName: "trees_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
             referencedRelation: "profiles"
             referencedColumns: ["id"]
           },
@@ -103,6 +110,14 @@ export type Database = {
       }
     }
     Views: {
+      leaderboard_public: {
+        Row: {
+          full_name: string | null
+          total_trees: number | null
+          user_id: string | null
+        }
+        Relationships: []
+      }
       profiles_public: {
         Row: {
           full_name: string | null
