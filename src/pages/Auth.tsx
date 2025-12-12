@@ -39,6 +39,8 @@ const Auth = () => {
         if (fromLogout) {
           // Clear any existing session when explicitly logged out
           await supabase.auth.signOut();
+          // Clear URL param without triggering navigation
+          window.history.replaceState({}, '', '/auth');
           setCheckingSession(false);
           return;
         }
@@ -78,19 +80,20 @@ const Auth = () => {
     checkSession();
   }, [navigate, searchParams]);
 
-  // Listen for auth state changes after initial check
+  // Listen for auth state changes after initial check - only respond when NOT checking session
   useEffect(() => {
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
       (event, session) => {
-        // Only redirect on SIGNED_IN event to avoid loops
-        if (event === "SIGNED_IN" && session) {
+        // Only redirect on explicit SIGNED_IN event (user just logged in)
+        // Ignore if we're still in the initial session check phase
+        if (!checkingSession && event === "SIGNED_IN" && session) {
           navigate("/map", { replace: true });
         }
       }
     );
 
     return () => subscription.unsubscribe();
-  }, [navigate]);
+  }, [navigate, checkingSession]);
 
   const validateInputs = (): boolean => {
     const newErrors: { email?: string; password?: string; fullName?: string } = {};
