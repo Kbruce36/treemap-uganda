@@ -29,7 +29,7 @@ const Index = () => {
               <Button
                 variant="hero"
                 size="lg"
-                onClick={() => navigate("/map")}
+                onClick={() => navigate("/treemap/map")}
                 className="text-lg"
               >
                 Start Planting
@@ -38,7 +38,7 @@ const Index = () => {
               <Button
                 variant="outline"
                 size="lg"
-                onClick={() => navigate("/leaderboard")}
+                onClick={() => navigate("/treemap/leaderboard")}
                 className="text-lg"
               >
                 View Leaderboard
@@ -68,7 +68,7 @@ const Index = () => {
                 <p className="text-muted-foreground mb-6">
                   Browse the interactive map to see every tree planted across Kyambogo University campus. View locations, species, and planting details.
                 </p>
-                <Button variant="outline" onClick={() => navigate("/map")} className="w-full">
+                <Button variant="outline" onClick={() => navigate("/treemap/map")} className="w-full">
                   Explore Map
                   <ArrowRight className="w-4 h-4 ml-2" />
                 </Button>
@@ -84,7 +84,7 @@ const Index = () => {
                 <p className="text-muted-foreground mb-6">
                   See who's leading the green movement! View rankings of top planters and celebrate our community's collective environmental impact.
                 </p>
-                <Button variant="outline" onClick={() => navigate("/leaderboard")} className="w-full">
+                <Button variant="outline" onClick={() => navigate("/treemap/leaderboard")} className="w-full">
                   View Rankings
                   <ArrowRight className="w-4 h-4 ml-2" />
                 </Button>
