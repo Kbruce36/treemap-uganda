@@ -275,7 +275,7 @@ const Profile = () => {
                   <Button
                     variant="hero"
                     className="mt-4"
-                    onClick={() => navigate("/map")}
+                    onClick={() => navigate("/treemap/map")}
                   >
                     Plant Your First Tree
                   </Button>
