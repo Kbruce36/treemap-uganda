@@ -9,6 +9,7 @@ import MapPage from "./pages/MapPage";
 import Leaderboard from "./pages/Leaderboard";
 import Profile from "./pages/Profile";
 import UserTrees from "./pages/UserTrees";
+import SDGsHub from "./pages/SDGsHub";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
@@ -21,6 +22,7 @@ const App = () => (
       <BrowserRouter>
         <Routes>
           <Route path="/" element={<Index />} />
+          <Route path="/sdgs" element={<SDGsHub />} />
           <Route path="/auth" element={<Auth />} />
           <Route path="/map" element={<MapPage />} />
           <Route path="/leaderboard" element={<Leaderboard />} />
