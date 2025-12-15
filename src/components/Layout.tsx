@@ -4,7 +4,7 @@ import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { useEffect, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { Session } from "@supabase/supabase-js";
-import { Leaf, Map, Trophy, User, LogOut } from "lucide-react";
+import { Leaf, Map, Trophy, User, LogOut, Target } from "lucide-react";
 
 export const Layout = ({ children }: { children: React.ReactNode }) => {
   const location = useLocation();
@@ -47,6 +47,7 @@ export const Layout = ({ children }: { children: React.ReactNode }) => {
 
   const navItems = [
     { path: "/", label: "Home", icon: Leaf },
+    { path: "/sdgs", label: "SDGs Hub", icon: Target },
     { path: "/map", label: "Map", icon: Map },
     { path: "/leaderboard", label: "Leaderboard", icon: Trophy },
     { path: "/profile", label: "Profile", icon: User },
