@@ -58,7 +58,7 @@ const Auth = () => {
         // Only redirect on explicit SIGNED_IN event (user just logged in)
         // Ignore if we're still in the initial session check phase
         if (!checkingSession && event === "SIGNED_IN" && session) {
-          navigate("/treemap/map", { replace: true });
+          navigate("/map", { replace: true });
         }
       }
     );

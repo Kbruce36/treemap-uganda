@@ -86,7 +86,7 @@ const UserTrees = () => {
   };
 
   const handleTreeClick = (tree: TreeLocation) => {
-    navigate(`/treemap/map?treeId=${tree.id}&lat=${tree.latitude}&lng=${tree.longitude}`);
+    navigate(`/map?treeId=${tree.id}&lat=${tree.latitude}&lng=${tree.longitude}`);
   };
 
   return (
@@ -95,7 +95,7 @@ const UserTrees = () => {
         <div className="max-w-3xl mx-auto">
           <Button
             variant="ghost"
-            onClick={() => navigate("/treemap/leaderboard")}
+            onClick={() => navigate("/leaderboard")}
             className="mb-4"
           >
             <ArrowLeft className="w-4 h-4 mr-2" />

@@ -3,11 +3,7 @@ import { Toaster as Sonner } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { BrowserRouter, Routes, Route } from "react-router-dom";
-import SDGHubHome from "./pages/SDGHubHome";
-import About from "./pages/About";
-import Contact from "./pages/Contact";
-import SDGDetail from "./pages/SDGDetail";
-import TreeMapHome from "./pages/Index";
+import Index from "./pages/Index";
 import Auth from "./pages/Auth";
 import MapPage from "./pages/MapPage";
 import Leaderboard from "./pages/Leaderboard";
@@ -24,20 +20,12 @@ const App = () => (
       <Sonner />
       <BrowserRouter>
         <Routes>
-          {/* SDG Hub Routes */}
-          <Route path="/" element={<SDGHubHome />} />
-          <Route path="/about" element={<About />} />
-          <Route path="/contact" element={<Contact />} />
-          <Route path="/sdg/:id" element={<SDGDetail />} />
-          
-          {/* TreeMap Routes */}
-          <Route path="/treemap" element={<TreeMapHome />} />
-          <Route path="/treemap/map" element={<MapPage />} />
-          <Route path="/treemap/leaderboard" element={<Leaderboard />} />
-          <Route path="/treemap/profile" element={<Profile />} />
-          <Route path="/treemap/user/:userId/trees" element={<UserTrees />} />
+          <Route path="/" element={<Index />} />
           <Route path="/auth" element={<Auth />} />
-          
+          <Route path="/map" element={<MapPage />} />
+          <Route path="/leaderboard" element={<Leaderboard />} />
+          <Route path="/profile" element={<Profile />} />
+          <Route path="/user/:userId/trees" element={<UserTrees />} />
           {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
           <Route path="*" element={<NotFound />} />
         </Routes>

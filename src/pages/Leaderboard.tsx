@@ -87,7 +87,7 @@ const Leaderboard = () => {
                   {leaderboard.map((entry, index) => (
                     <div
                       key={entry.user_id}
-                      onClick={() => entry.user_id !== 'community' && navigate(`/treemap/user/${entry.user_id}/trees`)}
+                      onClick={() => entry.user_id !== 'community' && navigate(`/user/${entry.user_id}/trees`)}
                       className={`flex items-center gap-2 md:gap-4 p-3 md:p-4 rounded-lg transition-all ${
                         entry.user_id !== 'community' ? 'hover:bg-muted/50 cursor-pointer' : ''
                       } ${
