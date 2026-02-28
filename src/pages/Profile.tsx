@@ -27,6 +27,7 @@ interface Tree {
   longitude: number;
   tree_count: number;
   notes: string | null;
+  tree_care_advice?: { advice?: any; advice_json?: any; created_at?: string }[];
 }
 
 const Profile = () => {
@@ -37,6 +38,7 @@ const Profile = () => {
   const [loading, setLoading] = useState(false);
   const [checkingAuth, setCheckingAuth] = useState(true);
   const [editingTree, setEditingTree] = useState<Tree | null>(null);
+  const [selectedTreeAdvice, setSelectedTreeAdvice] = useState<Tree | null>(null);
   const [editSpecies, setEditSpecies] = useState("");
   const [editTreeCount, setEditTreeCount] = useState(1);
   const [editNotes, setEditNotes] = useState("");
@@ -94,7 +96,7 @@ const Profile = () => {
 
     const { data, error } = await supabase
       .from("trees")
-      .select("*")
+      .select("*, tree_care_advice(*)")
       .eq("user_id", session.user.id)
       .order("planted_date", { ascending: false });
 
@@ -299,6 +301,13 @@ const Profile = () => {
                       </div>
                       <div className="flex items-center gap-2">
                         <Button
+                          variant="outline"
+                          size="sm"
+                          onClick={() => setSelectedTreeAdvice(tree)}
+                        >
+                          View Advice
+                        </Button>
+                        <Button
                           variant="ghost"
                           size="icon"
                           onClick={() => openEditDialog(tree)}
@@ -384,6 +393,72 @@ const Profile = () => {
                 {loading ? "Deleting..." : "Delete"}
               </Button>
             </div>
+          </DialogContent>
+        </Dialog>
+
+        <Dialog open={!!selectedTreeAdvice} onOpenChange={() => setSelectedTreeAdvice(null)}>
+          <DialogContent className="max-w-2xl max-h-[85vh] overflow-y-auto">
+            <DialogHeader>
+              <DialogTitle>Tree Advice</DialogTitle>
+              <DialogDescription>
+                {selectedTreeAdvice?.species || "Tree"} • Planted on {selectedTreeAdvice ? new Date(selectedTreeAdvice.planted_date).toLocaleDateString() : ""}
+              </DialogDescription>
+            </DialogHeader>
+
+            {(() => {
+              const adviceRecord = selectedTreeAdvice?.tree_care_advice?.[0] as any;
+              const advice = adviceRecord?.advice ?? adviceRecord?.advice_json;
+
+              if (!advice) {
+                return (
+                  <div className="bg-muted p-4 rounded-lg text-sm text-muted-foreground">
+                    No AI advice has been generated for this tree yet.
+                  </div>
+                );
+              }
+
+              return (
+                <div className="space-y-4">
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div className="bg-primary/10 p-3 rounded-lg">
+                      <p className="text-xs text-muted-foreground mb-1">Recommended Species</p>
+                      <p className="font-semibold">{advice.recommendedSpecies || selectedTreeAdvice?.species || "N/A"}</p>
+                    </div>
+                    <div className="bg-blue-500/10 p-3 rounded-lg">
+                      <p className="text-xs text-muted-foreground mb-1">Watering Plan</p>
+                      <p className="font-semibold">{advice.wateringFrequency || "N/A"}</p>
+                    </div>
+                  </div>
+
+                  <div>
+                    <p className="font-semibold mb-2">Survival Steps</p>
+                    <ul className="list-disc pl-5 space-y-1 text-sm">
+                      {(advice.survivalAdvice || []).map((tip: string, index: number) => (
+                        <li key={index}>{tip}</li>
+                      ))}
+                    </ul>
+                  </div>
+
+                  <div>
+                    <p className="font-semibold mb-2">Maintenance Tips</p>
+                    <ul className="list-disc pl-5 space-y-1 text-sm">
+                      {(advice.maintenanceTips || []).map((tip: string, index: number) => (
+                        <li key={index}>{tip}</li>
+                      ))}
+                    </ul>
+                  </div>
+
+                  <div>
+                    <p className="font-semibold mb-2">Risk Factors</p>
+                    <ul className="list-disc pl-5 space-y-1 text-sm text-destructive">
+                      {(advice.riskFactors || []).map((risk: string, index: number) => (
+                        <li key={index}>{risk}</li>
+                      ))}
+                    </ul>
+                  </div>
+                </div>
+              );
+            })()}
           </DialogContent>
         </Dialog>
       </div>

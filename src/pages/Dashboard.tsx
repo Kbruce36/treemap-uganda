@@ -6,6 +6,7 @@ import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Separator } from "@/components/ui/separator";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
 import { sendMessage, TreeContext } from "@/services/geminiService";
 import { useStatistics } from "@/hooks/use-statistics";
 import { supabase } from "@/integrations/supabase/client";
@@ -28,6 +29,14 @@ interface ChatMessage {
   parts: string;
   timestamp: Date;
 }
+
+const CHAT_HISTORY_STORAGE_KEY = "greanbot_chat_history_v1";
+const INITIAL_CHAT_MESSAGE: ChatMessage = {
+  role: "model",
+  parts:
+    "Hello! 🌿 I'm GreenBot, your AI assistant for TreeMap UNAU Kyambogo. Ask me anything about trees, planting tips, or how to use this platform!",
+  timestamp: new Date(),
+};
 
 interface Notification {
   id: string;
@@ -56,17 +65,11 @@ const Dashboard = () => {
   const navigate = useNavigate();
   const { totalTrees, activePlanters, treeSpecies, loading } = useStatistics();
 
-  const [messages, setMessages] = useState<ChatMessage[]>([
-    {
-      role: "model",
-      parts:
-        "Hello! 🌿 I'm GreenBot, your AI assistant for TreeMap UNAU Kyambogo. Ask me anything about trees, planting tips, or how to use this platform!",
-      timestamp: new Date(),
-    },
-  ]);
+  const [messages, setMessages] = useState<ChatMessage[]>([INITIAL_CHAT_MESSAGE]);
   const [input, setInput] = useState("");
   const [isTyping, setIsTyping] = useState(false);
   const [notifications, setNotifications] = useState<Notification[]>([]);
+  const [selectedAdvice, setSelectedAdvice] = useState<any | null>(null);
   const messagesEndRef = useRef<HTMLDivElement>(null);
 
   const context: TreeContext = {
@@ -78,6 +81,38 @@ const Dashboard = () => {
   // Auto-scroll chat to bottom
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
+  }, [messages]);
+
+  useEffect(() => {
+    try {
+      const raw = localStorage.getItem(CHAT_HISTORY_STORAGE_KEY);
+      if (!raw) return;
+
+      const parsed = JSON.parse(raw) as Array<{ role: "user" | "model"; parts: string; timestamp: string }>;
+      if (!Array.isArray(parsed) || parsed.length === 0) return;
+
+      const hydrated: ChatMessage[] = parsed
+        .filter((item) => item?.role && typeof item.parts === "string")
+        .map((item) => ({
+          role: item.role,
+          parts: item.parts,
+          timestamp: new Date(item.timestamp),
+        }));
+
+      if (hydrated.length > 0) {
+        setMessages(hydrated);
+      }
+    } catch (error) {
+      console.warn("[Dashboard] Failed to load chat history from localStorage:", error);
+    }
+  }, []);
+
+  useEffect(() => {
+    try {
+      localStorage.setItem(CHAT_HISTORY_STORAGE_KEY, JSON.stringify(messages));
+    } catch (error) {
+      console.warn("[Dashboard] Failed to save chat history to localStorage:", error);
+    }
   }, [messages]);
 
   // Seed initial notifications and subscribe to real-time tree events
@@ -101,7 +136,41 @@ const Dashboard = () => {
       });
     }
 
+    const loadExistingAdviceNotifications = async () => {
+      const { data: userData } = await supabase.auth.getUser();
+      if (!userData.user) return;
+
+      const { data: adviceRows, error } = await (supabase as any)
+        .from("tree_care_advice")
+        .select("id, user_id, advice, created_at")
+        .eq("user_id", userData.user.id)
+        .order("created_at", { ascending: false })
+        .limit(10);
+
+      if (error || !adviceRows) {
+        console.warn("[Dashboard] Failed to load existing advice notifications:", error);
+        return;
+      }
+
+      const adviceNotifications: Notification[] = adviceRows.map((row: any) => ({
+        id: `advice-existing-${row.id}`,
+        type: "advice",
+        message: "Bot: Your personalized survival advice is available.",
+        timestamp: row.created_at ? new Date(row.created_at) : new Date(),
+        adviceData: row.advice,
+      }));
+
+      setNotifications((prev) => {
+        const merged = [...adviceNotifications, ...prev];
+        const unique = merged.filter(
+          (item, index, arr) => arr.findIndex((other) => other.id === item.id) === index
+        );
+        return unique.slice(0, MAX_NOTIFICATIONS);
+      });
+    };
+
     setNotifications(seed);
+    loadExistingAdviceNotifications();
 
     // Real-time subscription for new trees and advice
     const channel = supabase
@@ -127,10 +196,12 @@ const Dashboard = () => {
         "postgres_changes",
         { event: "INSERT", schema: "public", table: "tree_care_advice" },
         async (payload) => {
+          console.log("[Dashboard Real-time] Detected new tree care advice in database:", payload.new);
           const { data: userData } = await supabase.auth.getUser();
           const adviceRow = payload.new as any;
           if (userData.user && adviceRow.user_id === userData.user.id) {
-            const adviceData = adviceRow.advice;
+            console.log("[Dashboard Real-time] Advice belongs to current user. Processing notification popup.");
+            const adviceData = adviceRow.advice ?? adviceRow.advice_json;
             const notification: Notification = {
               id: `advice-${adviceRow.id}`,
               type: "advice",
@@ -140,6 +211,8 @@ const Dashboard = () => {
             };
             setNotifications((prev) => [notification, ...prev].slice(0, MAX_NOTIFICATIONS));
             toast.info("New tree care advice available!");
+          } else {
+            console.log("[Dashboard Real-time] Advice belongs to a different user. Ignoring.");
           }
         }
       )
@@ -412,9 +485,10 @@ const Dashboard = () => {
                 ) : (
                   <div className="space-y-3">
                     {notifications.map((n) => (
-                      <div
+                        <div
                         key={n.id}
-                        className="flex items-start gap-3 p-3 rounded-lg bg-muted/40 hover:bg-muted/60 transition-colors flex-col"
+                        className={`flex items-start gap-3 p-3 rounded-lg bg-muted/40 hover:bg-muted/60 transition-colors flex-col ${n.type === 'advice' ? 'cursor-pointer border border-primary/20' : ''}`}
+                        onClick={() => n.type === 'advice' && setSelectedAdvice(n.adviceData)}
                       >
                         <div className="flex items-start gap-3 w-full">
                           <div className="mt-0.5 flex-shrink-0">
@@ -428,32 +502,16 @@ const Dashboard = () => {
                                 minute: "2-digit",
                               })}
                             </p>
+                            {n.type === "advice" && (
+                              <p className="text-xs text-primary mt-2 flex items-center gap-1">
+                                Click to view full analysis <Leaf className="w-3 h-3" />
+                              </p>
+                            )}
                           </div>
                           <Badge variant={getNotificationBadge(n.type) as "default" | "secondary" | "outline"} className="text-xs flex-shrink-0">
                             {n.type === "new_tree" ? "New" : n.type === "milestone" ? "🏆" : n.type === "advice" ? "Advice" : "Info"}
                           </Badge>
                         </div>
-                        {n.type === "advice" && n.adviceData && (
-                          <div className="mt-2 text-xs bg-background p-3 rounded border w-full">
-                            <p className="font-semibold text-primary mb-1">Recommended Species: {n.adviceData.recommendedSpecies}</p>
-                            <div className="mb-2">
-                              <span className="font-semibold">Watering:</span> {n.adviceData.wateringFrequency}
-                            </div>
-                            <div className="mb-2">
-                              <span className="font-semibold">Survival Tips:</span>
-                              <ul className="list-disc pl-4 mt-1 space-y-1">
-                                {n.adviceData.survivalAdvice?.map((tip: string, i: number) => (
-                                  <li key={i}>{tip}</li>
-                                ))}
-                              </ul>
-                            </div>
-                            {n.adviceData.riskFactors?.length > 0 && (
-                              <div className="mb-2 text-destructive">
-                                <span className="font-semibold">Risks:</span> {n.adviceData.riskFactors.join(", ")}
-                              </div>
-                            )}
-                          </div>
-                        )}
                       </div>
                     ))}
                   </div>
@@ -462,6 +520,79 @@ const Dashboard = () => {
             </CardContent>
           </Card>
         </div>
+
+        {/* Advice Dialog */}
+        <Dialog open={!!selectedAdvice} onOpenChange={(open) => !open && setSelectedAdvice(null)}>
+          <DialogContent className="max-w-2xl max-h-[85vh] overflow-y-auto">
+            <DialogHeader>
+              <DialogTitle className="flex items-center gap-2 text-primary">
+                <Leaf className="w-5 h-5" />
+                AI Tree Care Analysis
+              </DialogTitle>
+              <DialogDescription>
+                Personalized survival and maintenance plan for your tree based on current Ugandan weather and location data.
+              </DialogDescription>
+            </DialogHeader>
+            
+            {selectedAdvice && (
+              <div className="mt-4 space-y-6">
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <div className="bg-primary/10 p-4 rounded-xl border border-primary/20">
+                    <h4 className="font-semibold text-primary mb-2 flex items-center gap-2">
+                      <Leaf className="w-4 h-4" /> Recommended Species
+                    </h4>
+                    <p className="text-sm">{selectedAdvice.recommendedSpecies}</p>
+                  </div>
+                  <div className="bg-blue-500/10 p-4 rounded-xl border border-blue-500/20">
+                    <h4 className="font-semibold text-blue-600 mb-2 flex items-center gap-2">
+                      <Info className="w-4 h-4" /> Watering Plan
+                    </h4>
+                    <p className="text-sm">{selectedAdvice.wateringFrequency}</p>
+                  </div>
+                </div>
+
+                <div>
+                  <h4 className="font-semibold text-foreground mb-3 border-b pb-2">Immediate Survival Steps</h4>
+                  <ul className="space-y-2">
+                    {selectedAdvice.survivalAdvice?.map((tip: string, i: number) => (
+                      <li key={i} className="flex items-start gap-3 text-sm">
+                        <div className="w-6 h-6 rounded-full bg-primary/20 text-primary flex items-center justify-center flex-shrink-0 mt-0.5 text-xs font-bold">
+                          {i + 1}
+                        </div>
+                        <span className="pt-0.5">{tip}</span>
+                      </li>
+                    ))}
+                  </ul>
+                </div>
+
+                <div>
+                  <h4 className="font-semibold text-foreground mb-3 border-b pb-2">Long-term Maintenance</h4>
+                  <ul className="space-y-2">
+                    {selectedAdvice.maintenanceTips?.map((tip: string, i: number) => (
+                      <li key={i} className="flex items-start gap-2 text-sm text-muted-foreground">
+                        <Leaf className="w-4 h-4 text-green-500 mt-0.5 flex-shrink-0" />
+                        <span>{tip}</span>
+                      </li>
+                    ))}
+                  </ul>
+                </div>
+
+                {selectedAdvice.riskFactors?.length > 0 && (
+                  <div className="bg-destructive/10 p-4 rounded-xl border border-destructive/20">
+                    <h4 className="font-semibold text-destructive mb-3 flex items-center gap-2">
+                      ⚠️ Environmental Risk Factors
+                    </h4>
+                    <ul className="list-disc pl-5 space-y-1">
+                      {selectedAdvice.riskFactors.map((risk: string, i: number) => (
+                        <li key={i} className="text-sm text-destructive/90">{risk}</li>
+                      ))}
+                    </ul>
+                  </div>
+                )}
+              </div>
+            )}
+          </DialogContent>
+        </Dialog>
       </div>
     </Layout>
   );
