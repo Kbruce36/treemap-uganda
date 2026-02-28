@@ -135,7 +135,7 @@ export const Layout = ({ children }: { children: React.ReactNode }) => {
 
       <footer className="border-t border-border bg-card py-6 mt-auto">
         <div className="container mx-auto px-4 text-center text-sm text-muted-foreground">
-          <p>© 2025 TreeMap UNAU Kyambogo. Making our planet greener, one tree at a time.</p>
+          <p>© 2026 TreeMap UNAU Kyambogo. Making our planet greener, one tree at a time.</p>
         </div>
       </footer>
     </div>

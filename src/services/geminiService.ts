@@ -50,15 +50,17 @@ export async function sendMessage(
   try {
     const genAI = new GoogleGenerativeAI(API_KEY);
     const model = genAI.getGenerativeModel({
-      model: "gemini-1.5-flash",
+      model: "gemini-3-flash-preview",
       systemInstruction: buildSystemPrompt(context),
     });
 
     const chat = model.startChat({
-      history: history.map((h) => ({
-        role: h.role,
-        parts: [{ text: h.parts }],
-      })),
+      history: history
+        .filter((h, index) => index !== 0 || h.role === "user")
+        .map((h) => ({
+          role: h.role,
+          parts: [{ text: h.parts }],
+        })),
     });
 
     const result = await chat.sendMessage(userMessage);
