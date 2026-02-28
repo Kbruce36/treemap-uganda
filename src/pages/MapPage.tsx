@@ -8,11 +8,16 @@ import { Label } from "@/components/ui/label";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
 import { Textarea } from "@/components/ui/textarea";
 import { Card } from "@/components/ui/card";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { toast } from "sonner";
 import { Layout } from "@/components/Layout";
 import L from "leaflet";
 import "leaflet/dist/leaflet.css";
 import { Plus, Leaf } from "lucide-react";
+import { TREE_SPECIES } from "@/data/treeSpecies";
+
+import { getLocalWeatherContext } from "@/services/weatherService";
+import { generateTreeSurvivalAdvice } from "@/services/geminiService";
 
 // Fix Leaflet default marker icon issue in Vite/mobile
 delete (L.Icon.Default.prototype as any)._getIconUrl;
@@ -332,7 +337,7 @@ const MapPage = () => {
       }
 
       // Insert tree with image URLs
-      const { error } = await supabase.from("trees").insert({
+      const { data: treeData, error } = await supabase.from("trees").insert({
         user_id: session.user.id,
         latitude: newTree.latitude,
         longitude: newTree.longitude,
@@ -342,11 +347,39 @@ const MapPage = () => {
         image_1: imageUrls[0],
         image_2: imageUrls[1],
         image_3: imageUrls[2],
-      });
+      }).select().single();
 
       if (error) throw error;
 
       toast.success("Tree planted successfully! 🌱");
+      
+      // Proactively fetch weather and generate tree care advice
+      toast.promise(
+        async () => {
+          const weather = await getLocalWeatherContext(newTree.latitude, newTree.longitude);
+          const advice = await generateTreeSurvivalAdvice(
+            newTree.latitude,
+            newTree.longitude,
+            newTree.species || "Unknown Species",
+            weather
+          );
+
+          if (advice && treeData) {
+            await supabase.from("tree_care_advice").insert({
+              tree_id: treeData.id,
+              user_id: session.user.id,
+              advice: advice,
+            });
+            return advice;
+          }
+          throw new Error("Could not generate advice");
+        },
+        {
+          loading: 'Generating personalized survival advice based on local weather...',
+          success: (advice) => `Advice ready for your ${advice.recommendedSpecies || newTree.species}! Check your dashboard.`,
+          error: 'Could not generate care advice at this time.',
+        }
+      );
       
       // Remove the placement marker
       if (newTreeMarkerRef.current && mapInstanceRef.current) {
@@ -413,12 +446,29 @@ const MapPage = () => {
               </div>
               <div className="space-y-2">
                 <Label htmlFor="species">Tree Species (Optional)</Label>
-                <Input
-                  id="species"
-                  placeholder="e.g., Mango, Eucalyptus"
+                <Select
                   value={newTree.species}
-                  onChange={(e) => setNewTree({ ...newTree, species: e.target.value })}
-                />
+                  onValueChange={(value) => setNewTree({ ...newTree, species: value === "__other__" ? "" : value })}
+                >
+                  <SelectTrigger id="species">
+                    <SelectValue placeholder="Select a species..." />
+                  </SelectTrigger>
+                  <SelectContent className="z-[10000] max-h-60">
+                    {TREE_SPECIES.map((s) => (
+                      <SelectItem key={s.name} value={s.name}>
+                        {s.name} <span className="text-muted-foreground text-xs">({s.scientificName})</span>
+                      </SelectItem>
+                    ))}
+                    <SelectItem value="__other__">Other (type below)</SelectItem>
+                  </SelectContent>
+                </Select>
+                {(newTree.species === "" || !TREE_SPECIES.find((s) => s.name === newTree.species)) && (
+                  <Input
+                    placeholder="Enter species name..."
+                    value={newTree.species}
+                    onChange={(e) => setNewTree({ ...newTree, species: e.target.value })}
+                  />
+                )}
               </div>
               <div className="space-y-2">
                 <Label htmlFor="notes">Notes (Optional)</Label>

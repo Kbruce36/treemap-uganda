@@ -4,7 +4,7 @@ import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { useEffect, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { Session } from "@supabase/supabase-js";
-import { Leaf, Map, Trophy, User, LogOut } from "lucide-react";
+import { Leaf, Map, Trophy, User, LogOut, LayoutDashboard } from "lucide-react";
 
 export const Layout = ({ children }: { children: React.ReactNode }) => {
   const location = useLocation();
@@ -49,6 +49,7 @@ export const Layout = ({ children }: { children: React.ReactNode }) => {
     { path: "/", label: "Home", icon: Leaf },
     { path: "/map", label: "Map", icon: Map },
     { path: "/leaderboard", label: "Leaderboard", icon: Trophy },
+    { path: "/dashboard", label: "Dashboard", icon: LayoutDashboard },
     { path: "/profile", label: "Profile", icon: User },
   ];
 
@@ -134,7 +135,7 @@ export const Layout = ({ children }: { children: React.ReactNode }) => {
 
       <footer className="border-t border-border bg-card py-6 mt-auto">
         <div className="container mx-auto px-4 text-center text-sm text-muted-foreground">
-          <p>© 2025 TreeMap UNAU Kyambogo. Making our planet greener, one tree at a time.</p>
+          <p>© 2026 TreeMap UNAU Kyambogo. Making our planet greener, one tree at a time.</p>
         </div>
       </footer>
     </div>
