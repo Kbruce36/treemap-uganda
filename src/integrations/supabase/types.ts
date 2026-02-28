@@ -41,6 +41,38 @@ export type Database = {
         }
         Relationships: []
       }
+      tree_care_advice: {
+        Row: {
+          advice: Json | null
+          created_at: string
+          id: string
+          tree_id: string
+          user_id: string
+        }
+        Insert: {
+          advice?: Json | null
+          created_at?: string
+          id?: string
+          tree_id: string
+          user_id: string
+        }
+        Update: {
+          advice?: Json | null
+          created_at?: string
+          id?: string
+          tree_id?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "tree_care_advice_tree_id_fkey"
+            columns: ["tree_id"]
+            isOneToOne: false
+            referencedRelation: "trees"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       trees: {
         Row: {
           created_at: string | null
