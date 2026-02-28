@@ -8,11 +8,13 @@ import { Label } from "@/components/ui/label";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
 import { Textarea } from "@/components/ui/textarea";
 import { Card } from "@/components/ui/card";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { toast } from "sonner";
 import { Layout } from "@/components/Layout";
 import L from "leaflet";
 import "leaflet/dist/leaflet.css";
 import { Plus, Leaf } from "lucide-react";
+import { TREE_SPECIES } from "@/data/treeSpecies";
 
 // Fix Leaflet default marker icon issue in Vite/mobile
 delete (L.Icon.Default.prototype as any)._getIconUrl;
@@ -413,12 +415,29 @@ const MapPage = () => {
               </div>
               <div className="space-y-2">
                 <Label htmlFor="species">Tree Species (Optional)</Label>
-                <Input
-                  id="species"
-                  placeholder="e.g., Mango, Eucalyptus"
+                <Select
                   value={newTree.species}
-                  onChange={(e) => setNewTree({ ...newTree, species: e.target.value })}
-                />
+                  onValueChange={(value) => setNewTree({ ...newTree, species: value === "__other__" ? "" : value })}
+                >
+                  <SelectTrigger id="species">
+                    <SelectValue placeholder="Select a species..." />
+                  </SelectTrigger>
+                  <SelectContent className="z-[10000] max-h-60">
+                    {TREE_SPECIES.map((s) => (
+                      <SelectItem key={s.name} value={s.name}>
+                        {s.name} <span className="text-muted-foreground text-xs">({s.scientificName})</span>
+                      </SelectItem>
+                    ))}
+                    <SelectItem value="__other__">Other (type below)</SelectItem>
+                  </SelectContent>
+                </Select>
+                {(newTree.species === "" || !TREE_SPECIES.find((s) => s.name === newTree.species)) && (
+                  <Input
+                    placeholder="Enter species name..."
+                    value={newTree.species}
+                    onChange={(e) => setNewTree({ ...newTree, species: e.target.value })}
+                  />
+                )}
               </div>
               <div className="space-y-2">
                 <Label htmlFor="notes">Notes (Optional)</Label>
