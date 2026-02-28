@@ -1,5 +1,6 @@
-import { GoogleGenerativeAI } from "@google/generative-ai";
+import { GoogleGenerativeAI, SchemaType } from "@google/generative-ai";
 import { TREE_SPECIES } from "@/data/treeSpecies";
+import { WeatherData } from "./weatherService";
 
 const API_KEY = import.meta.env.VITE_GEMINI_API_KEY as string;
 
@@ -73,3 +74,83 @@ export async function sendMessage(
     return "Sorry, I encountered an error. Please try again.";
   }
 }
+
+export interface TreeCareAdvice {
+  recommendedSpecies?: string;
+  survivalAdvice: string[];
+  wateringFrequency: string;
+  riskFactors: string[];
+  maintenanceTips: string[];
+}
+
+export async function generateTreeSurvivalAdvice(
+  latitude: number,
+  longitude: number,
+  species: string,
+  weatherContext: WeatherData | null
+): Promise<TreeCareAdvice | null> {
+  if (!API_KEY) {
+    console.error("Gemini API key not configured.");
+    return null;
+  }
+
+  try {
+    const genAI = new GoogleGenerativeAI(API_KEY);
+    const model = genAI.getGenerativeModel({
+      model: "gemini-3-flash-preview", // Ensure using a model that supports structured outputs
+      generationConfig: {
+        responseMimeType: "application/json",
+        responseSchema: {
+          type: SchemaType.OBJECT,
+          properties: {
+            recommendedSpecies: {
+              type: SchemaType.STRING,
+              description: "If the provided species is unknown or ill-suited, suggest a better alternative. Otherwise, repeat the provided species.",
+            },
+            survivalAdvice: {
+              type: SchemaType.ARRAY,
+              items: { type: SchemaType.STRING },
+              description: "3-4 immediate actions to ensure the tree survives its first few weeks.",
+            },
+            wateringFrequency: {
+              type: SchemaType.STRING,
+              description: "Specific watering instructions considering the current weather.",
+            },
+            riskFactors: {
+              type: SchemaType.ARRAY,
+              items: { type: SchemaType.STRING },
+              description: "Current environmental or regional risk factors (e.g., extreme heat, heavy rain, pests).",
+            },
+            maintenanceTips: {
+              type: SchemaType.ARRAY,
+              items: { type: SchemaType.STRING },
+              description: "Long term maintenance tips for this specific species.",
+            },
+          },
+          required: ["survivalAdvice", "wateringFrequency", "riskFactors", "maintenanceTips"],
+        },
+      },
+    });
+
+    const weatherPrompt = weatherContext
+      ? `Current weather at location: ${weatherContext.temperature}°C, ${weatherContext.precipitation}mm rain, soil moisture: ${(weatherContext.soilMoisture * 100).toFixed(1)}%.`
+      : "Weather data currently unavailable.";
+
+    const prompt = `You are a professional arborist and tree survival expert. A user has just planted a new tree in Uganda.
+    
+    Tree Species: ${species || "Unknown Species"}
+    Location GPS: Latitude ${latitude}, Longitude ${longitude}
+    ${weatherPrompt}
+    
+    Based on this data, provide structured advice to ensure this tree survives and thrives to offset maximum carbon.`;
+
+    const result = await model.generateContent(prompt);
+    const responseText = result.response.text();
+    
+    return JSON.parse(responseText) as TreeCareAdvice;
+  } catch (error) {
+    console.error("Error generating tree care advice:", error);
+    return null;
+  }
+}
+

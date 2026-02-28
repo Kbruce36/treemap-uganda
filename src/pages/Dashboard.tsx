@@ -31,9 +31,10 @@ interface ChatMessage {
 
 interface Notification {
   id: string;
-  type: "new_tree" | "milestone" | "info";
+  type: "new_tree" | "milestone" | "info" | "advice";
   message: string;
   timestamp: Date;
+  adviceData?: any;
 }
 
 interface NewTreePayload {
@@ -102,7 +103,7 @@ const Dashboard = () => {
 
     setNotifications(seed);
 
-    // Real-time subscription for new trees
+    // Real-time subscription for new trees and advice
     const channel = supabase
       .channel("dashboard_notifications")
       .on(
@@ -120,6 +121,26 @@ const Dashboard = () => {
           };
           setNotifications((prev) => [notification, ...prev].slice(0, MAX_NOTIFICATIONS));
           toast.success(notification.message);
+        }
+      )
+      .on(
+        "postgres_changes",
+        { event: "INSERT", schema: "public", table: "tree_care_advice" },
+        async (payload) => {
+          const { data: userData } = await supabase.auth.getUser();
+          const adviceRow = payload.new as any;
+          if (userData.user && adviceRow.user_id === userData.user.id) {
+            const adviceData = adviceRow.advice;
+            const notification: Notification = {
+              id: `advice-${adviceRow.id}`,
+              type: "advice",
+              message: `Bot: Your personalized survival advice for your new tree is ready.`,
+              timestamp: new Date(),
+              adviceData: adviceData
+            };
+            setNotifications((prev) => [notification, ...prev].slice(0, MAX_NOTIFICATIONS));
+            toast.info("New tree care advice available!");
+          }
         }
       )
       .subscribe();
@@ -163,12 +184,14 @@ const Dashboard = () => {
   const getNotificationIcon = (type: Notification["type"]) => {
     if (type === "new_tree") return <Leaf className="w-4 h-4 text-green-600" />;
     if (type === "milestone") return <Trophy className="w-4 h-4 text-yellow-500" />;
+    if (type === "advice") return <Bot className="w-4 h-4 text-primary" />;
     return <Info className="w-4 h-4 text-blue-500" />;
   };
 
   const getNotificationBadge = (type: Notification["type"]) => {
     if (type === "new_tree") return "default";
     if (type === "milestone") return "secondary";
+    if (type === "advice") return "outline";
     return "outline";
   };
 
@@ -391,23 +414,46 @@ const Dashboard = () => {
                     {notifications.map((n) => (
                       <div
                         key={n.id}
-                        className="flex items-start gap-3 p-3 rounded-lg bg-muted/40 hover:bg-muted/60 transition-colors"
+                        className="flex items-start gap-3 p-3 rounded-lg bg-muted/40 hover:bg-muted/60 transition-colors flex-col"
                       >
-                        <div className="mt-0.5 flex-shrink-0">
-                          {getNotificationIcon(n.type)}
+                        <div className="flex items-start gap-3 w-full">
+                          <div className="mt-0.5 flex-shrink-0">
+                            {getNotificationIcon(n.type)}
+                          </div>
+                          <div className="flex-1 min-w-0">
+                            <p className="text-sm leading-snug">{n.message}</p>
+                            <p className="text-xs text-muted-foreground mt-1">
+                              {n.timestamp.toLocaleTimeString([], {
+                                hour: "2-digit",
+                                minute: "2-digit",
+                              })}
+                            </p>
+                          </div>
+                          <Badge variant={getNotificationBadge(n.type) as "default" | "secondary" | "outline"} className="text-xs flex-shrink-0">
+                            {n.type === "new_tree" ? "New" : n.type === "milestone" ? "🏆" : n.type === "advice" ? "Advice" : "Info"}
+                          </Badge>
                         </div>
-                        <div className="flex-1 min-w-0">
-                          <p className="text-sm leading-snug">{n.message}</p>
-                          <p className="text-xs text-muted-foreground mt-1">
-                            {n.timestamp.toLocaleTimeString([], {
-                              hour: "2-digit",
-                              minute: "2-digit",
-                            })}
-                          </p>
-                        </div>
-                        <Badge variant={getNotificationBadge(n.type) as "default" | "secondary" | "outline"} className="text-xs flex-shrink-0">
-                          {n.type === "new_tree" ? "New" : n.type === "milestone" ? "🏆" : "Info"}
-                        </Badge>
+                        {n.type === "advice" && n.adviceData && (
+                          <div className="mt-2 text-xs bg-background p-3 rounded border w-full">
+                            <p className="font-semibold text-primary mb-1">Recommended Species: {n.adviceData.recommendedSpecies}</p>
+                            <div className="mb-2">
+                              <span className="font-semibold">Watering:</span> {n.adviceData.wateringFrequency}
+                            </div>
+                            <div className="mb-2">
+                              <span className="font-semibold">Survival Tips:</span>
+                              <ul className="list-disc pl-4 mt-1 space-y-1">
+                                {n.adviceData.survivalAdvice?.map((tip: string, i: number) => (
+                                  <li key={i}>{tip}</li>
+                                ))}
+                              </ul>
+                            </div>
+                            {n.adviceData.riskFactors?.length > 0 && (
+                              <div className="mb-2 text-destructive">
+                                <span className="font-semibold">Risks:</span> {n.adviceData.riskFactors.join(", ")}
+                              </div>
+                            )}
+                          </div>
+                        )}
                       </div>
                     ))}
                   </div>

@@ -16,6 +16,9 @@ import "leaflet/dist/leaflet.css";
 import { Plus, Leaf } from "lucide-react";
 import { TREE_SPECIES } from "@/data/treeSpecies";
 
+import { getLocalWeatherContext } from "@/services/weatherService";
+import { generateTreeSurvivalAdvice } from "@/services/geminiService";
+
 // Fix Leaflet default marker icon issue in Vite/mobile
 delete (L.Icon.Default.prototype as any)._getIconUrl;
 L.Icon.Default.mergeOptions({
@@ -334,7 +337,7 @@ const MapPage = () => {
       }
 
       // Insert tree with image URLs
-      const { error } = await supabase.from("trees").insert({
+      const { data: treeData, error } = await supabase.from("trees").insert({
         user_id: session.user.id,
         latitude: newTree.latitude,
         longitude: newTree.longitude,
@@ -344,11 +347,39 @@ const MapPage = () => {
         image_1: imageUrls[0],
         image_2: imageUrls[1],
         image_3: imageUrls[2],
-      });
+      }).select().single();
 
       if (error) throw error;
 
       toast.success("Tree planted successfully! 🌱");
+      
+      // Proactively fetch weather and generate tree care advice
+      toast.promise(
+        async () => {
+          const weather = await getLocalWeatherContext(newTree.latitude, newTree.longitude);
+          const advice = await generateTreeSurvivalAdvice(
+            newTree.latitude,
+            newTree.longitude,
+            newTree.species || "Unknown Species",
+            weather
+          );
+
+          if (advice && treeData) {
+            await supabase.from("tree_care_advice").insert({
+              tree_id: treeData.id,
+              user_id: session.user.id,
+              advice: advice,
+            });
+            return advice;
+          }
+          throw new Error("Could not generate advice");
+        },
+        {
+          loading: 'Generating personalized survival advice based on local weather...',
+          success: (advice) => `Advice ready for your ${advice.recommendedSpecies || newTree.species}! Check your dashboard.`,
+          error: 'Could not generate care advice at this time.',
+        }
+      );
       
       // Remove the placement marker
       if (newTreeMarkerRef.current && mapInstanceRef.current) {
