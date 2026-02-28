@@ -37,10 +37,18 @@ const UserTrees = () => {
 
   const fetchUserTrees = async () => {
     try {
-      const { data: { session } } = await supabase.auth.getSession();
-      
-      // Fetch user profile - use public view for anonymous users
-      if (session) {
+      const {
+        data: { session },
+        error: sessionError,
+      } = await supabase.auth.getSession();
+
+      if (sessionError) {
+        console.warn("[UserTrees] Session recovery failed. Falling back to public view.", sessionError);
+      }
+
+      const isOwnProfile = !!session?.user && session.user.id === userId;
+
+      if (isOwnProfile) {
         const { data: profileData, error: profileError } = await supabase
           .from("profiles")
           .select("full_name, email")
@@ -57,11 +65,10 @@ const UserTrees = () => {
           .single();
 
         if (profileError) throw profileError;
-        setUserProfile({ full_name: profileData.full_name || 'Unknown', email: '' });
+        setUserProfile({ full_name: profileData.full_name || "Unknown", email: "" });
       }
 
-      // Fetch user's trees
-      if (session) {
+      if (isOwnProfile) {
         const { data: treesData, error: treesError } = await supabase
           .from("trees")
           .select("id, species, latitude, longitude, planted_date, notes, tree_care_advice(*)")
@@ -71,7 +78,6 @@ const UserTrees = () => {
         if (treesError) throw treesError;
         setTrees(treesData || []);
       } else {
-        // Anonymous users use the public view
         const { data: treesData, error: treesError } = await supabase
           .from("user_trees_public")
           .select("id, species, latitude, longitude, planted_date, notes")
