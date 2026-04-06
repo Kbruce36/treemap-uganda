@@ -46,16 +46,7 @@ const Profile = () => {
   const navigate = useNavigate();
 
   useEffect(() => {
-    const { data: { subscription } } = supabase.auth.onAuthStateChange(
-      (event, session) => {
-        setSession(session);
-        setCheckingAuth(false);
-        if (!session) {
-          navigate("/auth", { replace: true });
-        }
-      }
-    );
-
+    // Restore session from storage first
     supabase.auth.getSession().then(({ data: { session } }) => {
       setSession(session);
       setCheckingAuth(false);
@@ -63,6 +54,16 @@ const Profile = () => {
         navigate("/auth", { replace: true });
       }
     });
+
+    // Then listen for subsequent auth changes
+    const { data: { subscription } } = supabase.auth.onAuthStateChange(
+      (_event, session) => {
+        setSession(session);
+        if (!session && !checkingAuth) {
+          navigate("/auth", { replace: true });
+        }
+      }
+    );
 
     return () => subscription.unsubscribe();
   }, [navigate]);
