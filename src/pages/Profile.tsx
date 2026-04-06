@@ -82,7 +82,7 @@ const Profile = () => {
       .from("profiles")
       .select("*")
       .eq("id", session.user.id)
-      .single();
+      .maybeSingle();
 
     if (error) {
       toast.error("Failed to load profile");
