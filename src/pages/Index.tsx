@@ -20,7 +20,7 @@ const Index = () => {
               <Leaf className="w-14 h-14 text-primary-foreground" />
             </div>
             <h1 className="text-5xl md:text-7xl font-bold mb-6 bg-gradient-to-r from-primary to-secondary bg-clip-text text-transparent">
-              TreeMap UNAU Kyambogo
+              Greentrack
             </h1>
             <p className="text-xl md:text-2xl text-muted-foreground mb-8 max-w-2xl mx-auto">
               Join our community in making Kyambogo University greener. Track, map, and celebrate every tree we plant together.
@@ -223,7 +223,7 @@ const Index = () => {
               Ready to Make a Difference?
             </h2>
             <p className="text-muted-foreground text-lg mb-8">
-              Join UNAU members and start planting trees today. Every tree counts towards a greener tomorrow.
+              Join Greentrack and start planting trees today. Every tree counts towards a greener tomorrow.
             </p>
             <Button
               variant="hero"
