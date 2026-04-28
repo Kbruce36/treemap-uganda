@@ -165,7 +165,7 @@ const Auth = () => {
             <Leaf className="w-10 h-10 text-primary-foreground" />
           </div>
           <CardTitle className="text-2xl">
-            {isSignUp ? "Join TreeMap" : "Welcome Back"}
+            {isSignUp ? "Join Greentrack" : "Welcome Back"}
           </CardTitle>
           <CardDescription>
             {isSignUp
