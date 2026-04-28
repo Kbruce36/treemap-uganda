@@ -36,6 +36,28 @@ Deno.serve(async (req) => {
         }
         if (data.users.length < 1000) break;
       }
+    } else if (action === "wipe_storage") {
+      const bucket = "tree-images";
+      const allPaths: string[] = [];
+      const walk = async (prefix: string) => {
+        const { data, error } = await supabaseAdmin.storage.from(bucket).list(prefix, { limit: 1000 });
+        if (error) { results.push({ error: error.message, prefix }); return; }
+        for (const item of data || []) {
+          const path = prefix ? `${prefix}/${item.name}` : item.name;
+          if (item.id === null) {
+            await walk(path);
+          } else {
+            allPaths.push(path);
+          }
+        }
+      };
+      await walk("");
+      if (allPaths.length) {
+        const { error } = await supabaseAdmin.storage.from(bucket).remove(allPaths);
+        results.push({ deleted_files: allPaths.length, error: error?.message || null });
+      } else {
+        results.push({ deleted_files: 0 });
+      }
     }
   } catch (e) {
     results.push({ error: e.message });
