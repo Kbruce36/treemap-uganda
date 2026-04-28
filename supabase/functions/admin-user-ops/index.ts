@@ -24,6 +24,18 @@ Deno.serve(async (req) => {
       if (password) updateData.password = password;
       const { error } = await supabaseAdmin.auth.admin.updateUserById(user_id, updateData);
       results.push({ action: "update", user_id, error: error?.message || null });
+    } else if (action === "wipe_all_users") {
+      let page = 1;
+      while (true) {
+        const { data, error } = await supabaseAdmin.auth.admin.listUsers({ page, perPage: 1000 });
+        if (error) { results.push({ error: error.message }); break; }
+        if (!data.users.length) break;
+        for (const u of data.users) {
+          const { error: delErr } = await supabaseAdmin.auth.admin.deleteUser(u.id);
+          results.push({ deleted: u.email, error: delErr?.message || null });
+        }
+        if (data.users.length < 1000) break;
+      }
     }
   } catch (e) {
     results.push({ error: e.message });
