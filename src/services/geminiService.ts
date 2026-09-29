@@ -1,78 +1,12 @@
-import { GoogleGenerativeAI, SchemaType } from "@google/generative-ai";
-import { TREE_SPECIES } from "@/data/treeSpecies";
-import { WeatherData } from "./weatherService";
+import { supabase } from "@/integrations/supabase/client";
 
-const API_KEY = import.meta.env.VITE_GEMINI_API_KEY as string;
+// GreenBot runs in the `greenbot` Supabase Edge Function, which holds the
+// Gemini API key. Nothing here should ever touch the key directly.
 
 export interface TreeContext {
   totalTrees: number;
   activePlanters: number;
   treeSpecies: number;
-  recentSpecies?: string[];
-}
-
-function buildSystemPrompt(context?: TreeContext): string {
-  const speciesList = TREE_SPECIES.map(
-    (s) => `${s.name} (${s.scientificName}) - ${s.category}`
-  ).join(", ");
-
-  const contextStr = context
-    ? `
-Current platform statistics:
-- Total trees planted: ${context.totalTrees}
-- Active planters: ${context.activePlanters}
-- Tree species recorded: ${context.treeSpecies}
-${context.recentSpecies?.length ? `- Recently planted species: ${context.recentSpecies.join(", ")}` : ""}
-`
-    : "";
-
-  return `You are GreenBot, an AI assistant for Greentrack – a tree tracking platform that helps communities map and grow trees for a greener planet. Your role is to help users with:
-1. Information about tree species found in Uganda
-2. Tree planting tips and best practices for tropical East Africa
-3. Environmental impact of reforestation in Uganda, Africa, and worldwide
-4. Navigation and help with using the Greentrack platform
-5. Motivation and insights about the community's tree planting progress
-
-Known tree and plant species on this platform:
-${speciesList}
-${contextStr}
-Keep responses concise, friendly, and focused on trees and the environment. Use emojis sparingly to add warmth. Format your response in plain text, without markdown or HTML. If you don't know the answer, it's okay to say "I don't know, but I'm learning every day!" and encourage users to explore the platform.`;
-}
-
-export async function sendMessage(
-  userMessage: string,
-  history: { role: "user" | "model"; parts: string }[],
-  context?: TreeContext
-): Promise<string> {
-  if (!API_KEY) {
-    return "⚠️ Gemini API key not configured. Please add VITE_GEMINI_API_KEY to your .env file to enable the AI assistant.";
-  }
-
-  try {
-    const genAI = new GoogleGenerativeAI(API_KEY);
-    const model = genAI.getGenerativeModel({
-      model: "gemini-3-flash-preview",
-      systemInstruction: buildSystemPrompt(context),
-    });
-
-    const chat = model.startChat({
-      history: history
-        .filter((h, index) => index !== 0 || h.role === "user")
-        .map((h) => ({
-          role: h.role,
-          parts: [{ text: h.parts }],
-        })),
-    });
-
-    const result = await chat.sendMessage(userMessage);
-    return result.response.text();
-  } catch (error: unknown) {
-    console.error("Gemini API error:", error);
-    if (error instanceof Error && error.message.includes("API_KEY_INVALID")) {
-      return "⚠️ Invalid Gemini API key. Please check your VITE_GEMINI_API_KEY in the .env file.";
-    }
-    return "Sorry, I encountered an error. Please try again.";
-  }
 }
 
 export interface TreeCareAdvice {
@@ -83,74 +17,45 @@ export interface TreeCareAdvice {
   maintenanceTips: string[];
 }
 
-export async function generateTreeSurvivalAdvice(
-  latitude: number,
-  longitude: number,
-  species: string,
-  weatherContext: WeatherData | null
-): Promise<TreeCareAdvice | null> {
-  if (!API_KEY) {
-    console.error("Gemini API key not configured.");
-    return null;
+async function invokeGreenBot<T>(body: Record<string, unknown>): Promise<T> {
+  const { data, error } = await supabase.functions.invoke("greenbot", { body });
+  if (error) {
+    // FunctionsHttpError carries the function's JSON response in `context`.
+    let message = "GreenBot is unavailable right now. Please try again shortly.";
+    try {
+      const details = await (error as { context?: Response }).context?.json();
+      if (details?.error) message = details.error;
+    } catch {
+      // keep the generic message
+    }
+    throw new Error(message);
   }
+  return data as T;
+}
 
+export async function sendMessage(
+  userMessage: string,
+  history: { role: "user" | "model"; parts: string }[],
+  context?: TreeContext
+): Promise<string> {
   try {
-    const genAI = new GoogleGenerativeAI(API_KEY);
-    const model = genAI.getGenerativeModel({
-      model: "gemini-3-flash-preview", // Ensure using a model that supports structured outputs
-      generationConfig: {
-        responseMimeType: "application/json",
-        responseSchema: {
-          type: SchemaType.OBJECT,
-          properties: {
-            recommendedSpecies: {
-              type: SchemaType.STRING,
-              description: "If the provided species is unknown or ill-suited, suggest a better alternative. Otherwise, repeat the provided species.",
-            },
-            survivalAdvice: {
-              type: SchemaType.ARRAY,
-              items: { type: SchemaType.STRING },
-              description: "3-4 immediate actions to ensure the tree survives its first few weeks.",
-            },
-            wateringFrequency: {
-              type: SchemaType.STRING,
-              description: "Specific watering instructions considering the current weather.",
-            },
-            riskFactors: {
-              type: SchemaType.ARRAY,
-              items: { type: SchemaType.STRING },
-              description: "Current environmental or regional risk factors (e.g., extreme heat, heavy rain, pests).",
-            },
-            maintenanceTips: {
-              type: SchemaType.ARRAY,
-              items: { type: SchemaType.STRING },
-              description: "Long term maintenance tips for this specific species.",
-            },
-          },
-          required: ["survivalAdvice", "wateringFrequency", "riskFactors", "maintenanceTips"],
-        },
-      },
+    const { reply } = await invokeGreenBot<{ reply: string }>({
+      action: "chat",
+      message: userMessage,
+      history,
+      context,
     });
-
-    const weatherPrompt = weatherContext
-      ? `Current weather at location: ${weatherContext.temperature}°C, ${weatherContext.precipitation}mm rain, soil moisture: ${(weatherContext.soilMoisture * 100).toFixed(1)}%.`
-      : "Weather data currently unavailable.";
-
-    const prompt = `You are a professional arborist and tree survival expert. A user has just planted a new tree in Uganda.
-    
-    Tree Species: ${species || "Unknown Species"}
-    Location GPS: Latitude ${latitude}, Longitude ${longitude}
-    ${weatherPrompt}
-    
-    Based on this data, provide structured advice to ensure this tree survives and thrives to offset maximum carbon.`;
-
-    const result = await model.generateContent(prompt);
-    const responseText = result.response.text();
-    
-    return JSON.parse(responseText) as TreeCareAdvice;
+    return reply;
   } catch (error) {
-    console.error("Error generating tree care advice:", error);
-    return null;
+    return error instanceof Error ? `⚠️ ${error.message}` : "Sorry, I encountered an error. Please try again.";
   }
 }
 
+/** Asks GreenBot for care advice on one of the signed-in user's trees and stores it. */
+export async function requestTreeCareAdvice(treeId: string): Promise<TreeCareAdvice> {
+  const { advice } = await invokeGreenBot<{ advice: TreeCareAdvice }>({
+    action: "tree_advice",
+    tree_id: treeId,
+  });
+  return advice;
+}

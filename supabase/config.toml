@@ -1,1 +1,6 @@
 project_id = "bfgbrzqppdrgphrojtxm"
+
+# Applicants are not signed in, so this function does its own checks
+# (see supabase/functions/notify-application/index.ts).
+[functions.notify-application]
+verify_jwt = false

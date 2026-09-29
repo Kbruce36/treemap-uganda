@@ -1,0 +1,223 @@
+// GreenBot: server-side proxy for Gemini so the API key never reaches the browser.
+//
+// Secrets (set with `supabase secrets set ...`):
+//   GEMINI_API_KEY   required
+//   GEMINI_MODEL     optional, defaults to gemini-3-flash-preview
+//
+// Actions (POST JSON, caller must be a signed-in user):
+//   { action: "chat", message, history?, context? }  -> { reply }
+//   { action: "tree_advice", tree_id }               -> { advice }
+import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
+
+const corsHeaders = {
+  "Access-Control-Allow-Origin": "*",
+  "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
+  "Access-Control-Allow-Methods": "POST, OPTIONS",
+};
+
+const MAX_MESSAGE_CHARS = 2000;
+const MAX_HISTORY_TURNS = 20;
+const MAX_HISTORY_CHARS = 4000;
+
+const json = (body: unknown, status = 200) =>
+  new Response(JSON.stringify(body), {
+    status,
+    headers: { ...corsHeaders, "Content-Type": "application/json" },
+  });
+
+type Turn = { role: "user" | "model"; parts: string };
+
+interface ChatContext {
+  totalTrees?: number;
+  activePlanters?: number;
+  treeSpecies?: number;
+}
+
+function systemPrompt(context?: ChatContext): string {
+  const n = (v: unknown) => (typeof v === "number" && Number.isFinite(v) ? Math.max(0, Math.floor(v)) : null);
+  const stats = context
+    ? [
+        n(context.totalTrees) !== null && `- Total trees planted: ${n(context.totalTrees)}`,
+        n(context.activePlanters) !== null && `- Active planters: ${n(context.activePlanters)}`,
+        n(context.treeSpecies) !== null && `- Tree species recorded: ${n(context.treeSpecies)}`,
+      ]
+        .filter(Boolean)
+        .join("\n")
+    : "";
+
+  return `You are GreenBot, the AI assistant of the United Nations Association of Uganda (UNAU), Kyambogo University Chapter. The chapter's tagline is "Global Goals. Local Action." Its website includes UNAU TreeMap, a platform where members and the community map every tree they plant.
+
+You help with:
+1. Tree species found in Uganda and East Africa, and which suit a given site
+2. Tree planting and aftercare in tropical East Africa
+3. The environmental impact of reforestation in Uganda, Africa and worldwide
+4. The UN Sustainable Development Goals, especially Climate Action (13) and Life on Land (15)
+5. Using the website: the Tree Map, the leaderboard, projects and joining the chapter
+
+${stats ? `Current TreeMap statistics:\n${stats}\n` : ""}
+Keep answers concise, friendly and practical. Write plain text only, with no markdown or HTML. If you don't know something, say so honestly and point people to the chapter at unaukyambogo@gmail.com.`;
+}
+
+async function callGemini(body: Record<string, unknown>): Promise<string> {
+  const apiKey = Deno.env.get("GEMINI_API_KEY");
+  if (!apiKey) throw new Error("GEMINI_API_KEY is not configured");
+  const model = Deno.env.get("GEMINI_MODEL") ?? "gemini-3-flash-preview";
+
+  const res = await fetch(
+    `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent`,
+    {
+      method: "POST",
+      headers: { "Content-Type": "application/json", "x-goog-api-key": apiKey },
+      body: JSON.stringify(body),
+    },
+  );
+  if (!res.ok) {
+    throw new Error(`Gemini returned ${res.status}: ${(await res.text()).slice(0, 300)}`);
+  }
+  const data = await res.json();
+  const text = data?.candidates?.[0]?.content?.parts?.map((p: { text?: string }) => p.text ?? "").join("");
+  if (!text) throw new Error("Gemini returned no text");
+  return text;
+}
+
+async function getWeather(lat: number, lng: number) {
+  try {
+    const url =
+      `https://api.open-meteo.com/v1/forecast?latitude=${lat}&longitude=${lng}` +
+      `&current=temperature_2m,precipitation,soil_moisture_0_to_1cm&timezone=auto`;
+    const res = await fetch(url);
+    if (!res.ok) return null;
+    const c = (await res.json())?.current;
+    if (!c) return null;
+    return {
+      temperature: c.temperature_2m as number,
+      precipitation: c.precipitation as number,
+      soilMoisture: c.soil_moisture_0_to_1cm as number,
+    };
+  } catch {
+    return null;
+  }
+}
+
+const ADVICE_SCHEMA = {
+  type: "OBJECT",
+  properties: {
+    recommendedSpecies: {
+      type: "STRING",
+      description: "If the species is unknown or ill-suited, suggest a better alternative. Otherwise repeat it.",
+    },
+    survivalAdvice: {
+      type: "ARRAY",
+      items: { type: "STRING" },
+      description: "3-4 immediate actions to help the tree survive its first weeks.",
+    },
+    wateringFrequency: {
+      type: "STRING",
+      description: "Specific watering instructions considering the current weather.",
+    },
+    riskFactors: {
+      type: "ARRAY",
+      items: { type: "STRING" },
+      description: "Current environmental or regional risks (heat, heavy rain, pests...).",
+    },
+    maintenanceTips: {
+      type: "ARRAY",
+      items: { type: "STRING" },
+      description: "Long-term maintenance tips for this species.",
+    },
+  },
+  required: ["survivalAdvice", "wateringFrequency", "riskFactors", "maintenanceTips"],
+};
+
+Deno.serve(async (req) => {
+  if (req.method === "OPTIONS") return new Response("ok", { headers: corsHeaders });
+  if (req.method !== "POST") return json({ error: "Method not allowed" }, 405);
+
+  const authHeader = req.headers.get("Authorization") ?? "";
+  const supabase = createClient(
+    Deno.env.get("SUPABASE_URL")!,
+    Deno.env.get("SUPABASE_ANON_KEY")!,
+    { global: { headers: { Authorization: authHeader } } },
+  );
+
+  const { data: userData } = await supabase.auth.getUser();
+  const user = userData?.user;
+  if (!user) return json({ error: "Please sign in to use GreenBot." }, 401);
+
+  let payload: Record<string, unknown>;
+  try {
+    payload = await req.json();
+  } catch {
+    return json({ error: "Invalid JSON body" }, 400);
+  }
+
+  try {
+    if (payload.action === "chat") {
+      const message = typeof payload.message === "string" ? payload.message.trim() : "";
+      if (!message || message.length > MAX_MESSAGE_CHARS) {
+        return json({ error: `Message must be 1-${MAX_MESSAGE_CHARS} characters.` }, 400);
+      }
+
+      const rawHistory = Array.isArray(payload.history) ? (payload.history as Turn[]) : [];
+      const history = rawHistory
+        .filter((h) => (h?.role === "user" || h?.role === "model") && typeof h.parts === "string")
+        .slice(-MAX_HISTORY_TURNS)
+        .map((h) => ({ role: h.role, parts: [{ text: h.parts.slice(0, MAX_HISTORY_CHARS) }] }));
+      // Gemini requires the conversation to start with a user turn.
+      while (history.length && history[0].role !== "user") history.shift();
+
+      const reply = await callGemini({
+        systemInstruction: { parts: [{ text: systemPrompt(payload.context as ChatContext | undefined) }] },
+        contents: [...history, { role: "user", parts: [{ text: message }] }],
+      });
+      return json({ reply });
+    }
+
+    if (payload.action === "tree_advice") {
+      const treeId = typeof payload.tree_id === "string" ? payload.tree_id : "";
+      const { data: tree, error: treeError } = await supabase
+        .from("trees")
+        .select("id, user_id, species, latitude, longitude")
+        .eq("id", treeId)
+        .single();
+      if (treeError || !tree) return json({ error: "Tree not found" }, 404);
+      if (tree.user_id !== user.id) return json({ error: "You can only request advice for your own trees." }, 403);
+
+      const lat = Number(tree.latitude);
+      const lng = Number(tree.longitude);
+      const weather = await getWeather(lat, lng);
+      const weatherLine = weather
+        ? `Current weather at the location: ${weather.temperature}°C, ${weather.precipitation} mm rain, soil moisture ${(weather.soilMoisture * 100).toFixed(1)}%.`
+        : "Weather data is currently unavailable.";
+
+      const text = await callGemini({
+        contents: [{
+          role: "user",
+          parts: [{
+            text: `You are a professional arborist. A member of UNAU Kyambogo has just planted a tree in Uganda.
+
+Tree species: ${tree.species || "Unknown species"}
+Location: latitude ${lat}, longitude ${lng}
+${weatherLine}
+
+Give structured advice so this tree survives and thrives.`,
+          }],
+        }],
+        generationConfig: { responseMimeType: "application/json", responseSchema: ADVICE_SCHEMA },
+      });
+
+      const advice = JSON.parse(text);
+      const { error: insertError } = await supabase
+        .from("tree_care_advice")
+        .insert({ tree_id: tree.id, user_id: user.id, advice });
+      if (insertError) throw insertError;
+
+      return json({ advice });
+    }
+
+    return json({ error: "Unknown action" }, 400);
+  } catch (error) {
+    console.error("[greenbot]", error);
+    return json({ error: "GreenBot is unavailable right now. Please try again shortly." }, 502);
+  }
+});

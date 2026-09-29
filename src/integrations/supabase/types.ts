@@ -7,13 +7,97 @@ export type Json =
   | Json[]
 
 export type Database = {
-  // Allows to automatically instantiate createClient with right options
-  // instead of createClient<Database, { PostgrestVersion: 'XX' }>(URL, KEY)
-  __InternalSupabase: {
-    PostgrestVersion: "13.0.5"
-  }
   public: {
     Tables: {
+      executive_applications: {
+        Row: {
+          admin_notes: string | null
+          consent: boolean
+          course: string
+          created_at: string
+          email: string
+          faculty: string | null
+          full_name: string
+          id: string
+          motivation: string | null
+          notified_at: string | null
+          phone: string
+          position_id: string
+          status: string
+          updated_at: string
+          year_of_study: number
+        }
+        Insert: {
+          admin_notes?: string | null
+          consent: boolean
+          course: string
+          created_at?: string
+          email: string
+          faculty?: string | null
+          full_name: string
+          id?: string
+          motivation?: string | null
+          notified_at?: string | null
+          phone: string
+          position_id: string
+          status?: string
+          updated_at?: string
+          year_of_study: number
+        }
+        Update: {
+          admin_notes?: string | null
+          consent?: boolean
+          course?: string
+          created_at?: string
+          email?: string
+          faculty?: string | null
+          full_name?: string
+          id?: string
+          motivation?: string | null
+          notified_at?: string | null
+          phone?: string
+          position_id?: string
+          status?: string
+          updated_at?: string
+          year_of_study?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "executive_applications_position_id_fkey"
+            columns: ["position_id"]
+            isOneToOne: false
+            referencedRelation: "executive_positions"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      executive_positions: {
+        Row: {
+          created_at: string
+          description: string | null
+          id: string
+          is_open: boolean
+          sort_order: number
+          title: string
+        }
+        Insert: {
+          created_at?: string
+          description?: string | null
+          id?: string
+          is_open?: boolean
+          sort_order?: number
+          title: string
+        }
+        Update: {
+          created_at?: string
+          description?: string | null
+          id?: string
+          is_open?: boolean
+          sort_order?: number
+          title?: string
+        }
+        Relationships: []
+      }
       profiles: {
         Row: {
           avatar_url: string | null
@@ -41,26 +125,179 @@ export type Database = {
         }
         Relationships: []
       }
+      projects: {
+        Row: {
+          body: string
+          category: string
+          cover_image: string | null
+          created_at: string
+          cta_label: string | null
+          cta_url: string | null
+          event_date: string | null
+          gallery: string[]
+          id: string
+          impact: Json
+          is_featured: boolean
+          is_published: boolean
+          location: string | null
+          partners: string | null
+          sdgs: number[]
+          slug: string
+          summary: string
+          title: string
+          updated_at: string
+        }
+        Insert: {
+          body?: string
+          category?: string
+          cover_image?: string | null
+          created_at?: string
+          cta_label?: string | null
+          cta_url?: string | null
+          event_date?: string | null
+          gallery?: string[]
+          id?: string
+          impact?: Json
+          is_featured?: boolean
+          is_published?: boolean
+          location?: string | null
+          partners?: string | null
+          sdgs?: number[]
+          slug: string
+          summary?: string
+          title: string
+          updated_at?: string
+        }
+        Update: {
+          body?: string
+          category?: string
+          cover_image?: string | null
+          created_at?: string
+          cta_label?: string | null
+          cta_url?: string | null
+          event_date?: string | null
+          gallery?: string[]
+          id?: string
+          impact?: Json
+          is_featured?: boolean
+          is_published?: boolean
+          location?: string | null
+          partners?: string | null
+          sdgs?: number[]
+          slug?: string
+          summary?: string
+          title?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
+      site_settings: {
+        Row: {
+          applications_deadline: string | null
+          applications_message: string
+          applications_open: boolean
+          applications_title: string
+          contact_email: string
+          contact_phone: string
+          id: number
+          instagram_handle: string
+          membership_fee: string
+          notification_email: string | null
+          sdg_focus: number
+          updated_at: string
+          x_handle: string
+        }
+        Insert: {
+          applications_deadline?: string | null
+          applications_message?: string
+          applications_open?: boolean
+          applications_title?: string
+          contact_email?: string
+          contact_phone?: string
+          id?: number
+          instagram_handle?: string
+          membership_fee?: string
+          notification_email?: string | null
+          sdg_focus?: number
+          updated_at?: string
+          x_handle?: string
+        }
+        Update: {
+          applications_deadline?: string | null
+          applications_message?: string
+          applications_open?: boolean
+          applications_title?: string
+          contact_email?: string
+          contact_phone?: string
+          id?: number
+          instagram_handle?: string
+          membership_fee?: string
+          notification_email?: string | null
+          sdg_focus?: number
+          updated_at?: string
+          x_handle?: string
+        }
+        Relationships: []
+      }
+      team_members: {
+        Row: {
+          bio: string | null
+          created_at: string
+          full_name: string
+          id: string
+          is_active: boolean
+          photo_url: string | null
+          role: string
+          sort_order: number
+          updated_at: string
+        }
+        Insert: {
+          bio?: string | null
+          created_at?: string
+          full_name: string
+          id?: string
+          is_active?: boolean
+          photo_url?: string | null
+          role: string
+          sort_order?: number
+          updated_at?: string
+        }
+        Update: {
+          bio?: string | null
+          created_at?: string
+          full_name?: string
+          id?: string
+          is_active?: boolean
+          photo_url?: string | null
+          role?: string
+          sort_order?: number
+          updated_at?: string
+        }
+        Relationships: []
+      }
       tree_care_advice: {
         Row: {
-          advice: Json | null
-          created_at: string
+          advice: Json
+          created_at: string | null
           id: string
           tree_id: string
+          updated_at: string | null
           user_id: string
         }
         Insert: {
-          advice?: Json | null
-          created_at?: string
+          advice: Json
+          created_at?: string | null
           id?: string
           tree_id: string
+          updated_at?: string | null
           user_id: string
         }
         Update: {
-          advice?: Json | null
-          created_at?: string
+          advice?: Json
+          created_at?: string | null
           id?: string
           tree_id?: string
+          updated_at?: string | null
           user_id?: string
         }
         Relationships: [
@@ -69,6 +306,13 @@ export type Database = {
             columns: ["tree_id"]
             isOneToOne: false
             referencedRelation: "trees"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "tree_care_advice_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
             referencedColumns: ["id"]
           },
         ]
@@ -126,6 +370,27 @@ export type Database = {
           },
         ]
       }
+      user_roles: {
+        Row: {
+          created_at: string
+          id: string
+          role: Database["public"]["Enums"]["app_role"]
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          role: Database["public"]["Enums"]["app_role"]
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          role?: Database["public"]["Enums"]["app_role"]
+          user_id?: string
+        }
+        Relationships: []
+      }
     }
     Views: {
       leaderboard_public: {
@@ -177,6 +442,7 @@ export type Database = {
       }
     }
     Functions: {
+      applications_are_open: { Args: never; Returns: boolean }
       get_leaderboard: {
         Args: never
         Returns: {
@@ -224,9 +490,17 @@ export type Database = {
           user_id: string
         }[]
       }
+      has_role: {
+        Args: {
+          _role: Database["public"]["Enums"]["app_role"]
+          _user_id: string
+        }
+        Returns: boolean
+      }
+      is_admin: { Args: never; Returns: boolean }
     }
     Enums: {
-      [_ in never]: never
+      app_role: "admin"
     }
     CompositeTypes: {
       [_ in never]: never
@@ -242,12 +516,12 @@ export type Tables<
   DefaultSchemaTableNameOrOptions extends
     | keyof (DefaultSchema["Tables"] & DefaultSchema["Views"])
     | { schema: keyof DatabaseWithoutInternals },
-  TableName extends DefaultSchemaTableNameOrOptions extends {
+  TableName extends (DefaultSchemaTableNameOrOptions extends {
     schema: keyof DatabaseWithoutInternals
   }
     ? keyof (DatabaseWithoutInternals[DefaultSchemaTableNameOrOptions["schema"]]["Tables"] &
         DatabaseWithoutInternals[DefaultSchemaTableNameOrOptions["schema"]]["Views"])
-    : never = never,
+    : never) = never,
 > = DefaultSchemaTableNameOrOptions extends {
   schema: keyof DatabaseWithoutInternals
 }
@@ -271,11 +545,11 @@ export type TablesInsert<
   DefaultSchemaTableNameOrOptions extends
     | keyof DefaultSchema["Tables"]
     | { schema: keyof DatabaseWithoutInternals },
-  TableName extends DefaultSchemaTableNameOrOptions extends {
+  TableName extends (DefaultSchemaTableNameOrOptions extends {
     schema: keyof DatabaseWithoutInternals
   }
     ? keyof DatabaseWithoutInternals[DefaultSchemaTableNameOrOptions["schema"]]["Tables"]
-    : never = never,
+    : never) = never,
 > = DefaultSchemaTableNameOrOptions extends {
   schema: keyof DatabaseWithoutInternals
 }
@@ -296,11 +570,11 @@ export type TablesUpdate<
   DefaultSchemaTableNameOrOptions extends
     | keyof DefaultSchema["Tables"]
     | { schema: keyof DatabaseWithoutInternals },
-  TableName extends DefaultSchemaTableNameOrOptions extends {
+  TableName extends (DefaultSchemaTableNameOrOptions extends {
     schema: keyof DatabaseWithoutInternals
   }
     ? keyof DatabaseWithoutInternals[DefaultSchemaTableNameOrOptions["schema"]]["Tables"]
-    : never = never,
+    : never) = never,
 > = DefaultSchemaTableNameOrOptions extends {
   schema: keyof DatabaseWithoutInternals
 }
@@ -321,11 +595,11 @@ export type Enums<
   DefaultSchemaEnumNameOrOptions extends
     | keyof DefaultSchema["Enums"]
     | { schema: keyof DatabaseWithoutInternals },
-  EnumName extends DefaultSchemaEnumNameOrOptions extends {
+  EnumName extends (DefaultSchemaEnumNameOrOptions extends {
     schema: keyof DatabaseWithoutInternals
   }
     ? keyof DatabaseWithoutInternals[DefaultSchemaEnumNameOrOptions["schema"]]["Enums"]
-    : never = never,
+    : never) = never,
 > = DefaultSchemaEnumNameOrOptions extends {
   schema: keyof DatabaseWithoutInternals
 }
@@ -338,11 +612,11 @@ export type CompositeTypes<
   PublicCompositeTypeNameOrOptions extends
     | keyof DefaultSchema["CompositeTypes"]
     | { schema: keyof DatabaseWithoutInternals },
-  CompositeTypeName extends PublicCompositeTypeNameOrOptions extends {
+  CompositeTypeName extends (PublicCompositeTypeNameOrOptions extends {
     schema: keyof DatabaseWithoutInternals
   }
     ? keyof DatabaseWithoutInternals[PublicCompositeTypeNameOrOptions["schema"]]["CompositeTypes"]
-    : never = never,
+    : never) = never,
 > = PublicCompositeTypeNameOrOptions extends {
   schema: keyof DatabaseWithoutInternals
 }
@@ -353,6 +627,9 @@ export type CompositeTypes<
 
 export const Constants = {
   public: {
-    Enums: {},
+    Enums: {
+      app_role: ["admin"],
+    },
   },
 } as const
+

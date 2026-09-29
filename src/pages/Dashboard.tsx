@@ -34,7 +34,7 @@ const CHAT_HISTORY_STORAGE_KEY = "greanbot_chat_history_v1";
 const INITIAL_CHAT_MESSAGE: ChatMessage = {
   role: "model",
   parts:
-    "Hello! 🌿 I'm GreenBot, your AI assistant for Greentrack. Ask me anything about trees, planting tips, or how to use this platform!",
+    "Hello! 🌿 I'm GreenBot, the AI assistant for UNAU Kyambogo. Ask me anything about trees, planting tips, or how to use this platform!",
   timestamp: new Date(),
 };
 
@@ -121,7 +121,7 @@ const Dashboard = () => {
       {
         id: "info-1",
         type: "info",
-        message: "Welcome to the Greentrack Dashboard! Start chatting with GreenBot or explore the map.",
+        message: "Welcome to the UNAU Kyambogo GreenBot dashboard! Start chatting with GreenBot or explore the map.",
         timestamp: new Date(),
       },
     ];

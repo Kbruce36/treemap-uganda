@@ -24,3 +24,10 @@ dist-ssr
 *.sw?
 .env
 .env.local
+
+# Supabase CLI local state
+supabase/.temp
+supabase/.branches
+
+# Local editor/agent tooling
+.claude/
