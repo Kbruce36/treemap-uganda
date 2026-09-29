@@ -17,6 +17,7 @@ import { Plus, Leaf, Loader2, LocateFixed, MapPin } from "lucide-react";
 import { TREE_SPECIES } from "@/data/treeSpecies";
 import { requestTreeCareAdvice } from "@/services/geminiService";
 import { downscaleImage } from "@/lib/media";
+import { addBaseLayers } from "@/lib/map-tiles";
 import { KYAMBOGO_CENTER } from "@/components/site/TreeMapPreview";
 import {
   MIN_PLANTED_DATE,
@@ -123,12 +124,7 @@ const MapPage = () => {
     const initialZoom = focusLat && focusLng ? 18 : 16;
 
     const map = L.map(mapContainerRef.current).setView([initialLat, initialLng], initialZoom);
-    // Keep the OpenStreetMap credit the tile licence requires, without the Leaflet logo.
-    map.attributionControl.setPrefix(false);
-
-    L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png", {
-      attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors',
-    }).addTo(map);
+    addBaseLayers(map, { switcher: true });
 
     // Ensure proper sizing after mount and on resize
     const handleResize = () => map.invalidateSize();

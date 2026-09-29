@@ -2,7 +2,8 @@
 //
 // Secrets (set with `supabase secrets set ...`):
 //   GEMINI_API_KEY   required
-//   GEMINI_MODEL     optional, defaults to gemini-3-flash-preview
+//   GEMINI_MODEL     optional, defaults to gemini-3-flash-preview; if that model isn't
+//                    available to the key, a free Flash model is picked automatically
 //
 // GreenBot is scoped to the Sustainable Development Goals and the chapter's work
 // (see systemPrompt). It stores no chat history: each browser keeps its own,
@@ -106,19 +107,53 @@ STYLE. Be concise, friendly and practical, suitable for university students. Wri
 /** Gemini's free tier returns 429 when the per-minute or per-day limit is used up. */
 class GeminiBusyError extends Error {}
 
-async function callGemini(body: Record<string, unknown>): Promise<string> {
+const GEMINI_API = "https://generativelanguage.googleapis.com/v1beta";
+const DEFAULT_MODEL = "gemini-3-flash-preview";
+// Model picked automatically when the default isn't available to this key (kept while the function is warm).
+let discoveredModel: string | null = null;
+
+/**
+ * Asks Google which models this API key can use and picks the best Flash text
+ * model (Flash models are on the free tier). Prefers stable over preview, newest first.
+ */
+async function discoverFlashModel(apiKey: string): Promise<string | null> {
+  const res = await fetch(`${GEMINI_API}/models?pageSize=200`, { headers: { "x-goog-api-key": apiKey } });
+  if (!res.ok) return null;
+  const { models = [] } = await res.json();
+  const score = (name: string) => {
+    const version = Number(name.match(/gemini-(\d+(?:\.\d+)?)/)?.[1] ?? 0);
+    return version * 10 + (/preview/.test(name) ? 0 : 5) + (/lite/.test(name) ? -3 : 0);
+  };
+  const candidates = (models as { name: string; supportedGenerationMethods?: string[] }[])
+    .map((m) => ({ ...m, name: m.name.replace(/^models\//, "") }))
+    .filter(
+      (m) =>
+        m.supportedGenerationMethods?.includes("generateContent") &&
+        /flash/.test(m.name) &&
+        !/(image|tts|audio|live|embedding|exp)/.test(m.name)
+    )
+    .sort((a, b) => score(b.name) - score(a.name));
+  return candidates[0]?.name ?? null;
+}
+
+async function callGemini(body: Record<string, unknown>, retried = false): Promise<string> {
   const apiKey = Deno.env.get("GEMINI_API_KEY");
   if (!apiKey) throw new Error("GEMINI_API_KEY is not configured");
-  const model = Deno.env.get("GEMINI_MODEL") ?? "gemini-3-flash-preview";
+  const configured = Deno.env.get("GEMINI_MODEL");
+  const model = configured ?? discoveredModel ?? DEFAULT_MODEL;
 
-  const res = await fetch(
-    `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent`,
-    {
-      method: "POST",
-      headers: { "Content-Type": "application/json", "x-goog-api-key": apiKey },
-      body: JSON.stringify(body),
-    },
-  );
+  const res = await fetch(`${GEMINI_API}/models/${model}:generateContent`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json", "x-goog-api-key": apiKey },
+    body: JSON.stringify(body),
+  });
+
+  // Default model not available to this key: find one that is, once.
+  if (res.status === 404 && !configured && !retried) {
+    discoveredModel = await discoverFlashModel(apiKey);
+    console.log(`[greenbot] ${model} unavailable, switched to ${discoveredModel}`);
+    if (discoveredModel) return callGemini(body, true);
+  }
   if (!res.ok) {
     const detail = (await res.text()).slice(0, 300);
     if (res.status === 429) throw new GeminiBusyError(detail);

@@ -2,6 +2,7 @@ import { useEffect, useRef } from "react";
 import L from "leaflet";
 import "leaflet/dist/leaflet.css";
 import { supabase } from "@/integrations/supabase/client";
+import { addBaseLayers } from "@/lib/map-tiles";
 
 export const KYAMBOGO_CENTER: L.LatLngTuple = [0.3497, 32.63];
 
@@ -20,14 +21,7 @@ export const TreeMapPreview = ({ className }: { className?: string }) => {
       doubleClickZoom: false,
       keyboard: false,
     }).setView(KYAMBOGO_CENTER, 15);
-    // Keep the tile credits the OSM/CARTO licences require, without the Leaflet logo.
-    map.attributionControl.setPrefix(false);
-
-    L.tileLayer("https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png", {
-      subdomains: "abcd",
-      maxZoom: 19,
-      attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> &copy; <a href="https://carto.com/attributions">CARTO</a>',
-    }).addTo(map);
+    addBaseLayers(map);
 
     let cancelled = false;
     supabase
