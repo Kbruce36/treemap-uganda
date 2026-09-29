@@ -1,3 +1,4 @@
+import { lazy, Suspense } from "react";
 import { Link } from "react-router-dom";
 import { ArrowRight, Camera, Leaf, Loader2, MapPin, Sprout, Trophy, Users } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -9,8 +10,13 @@ import { CHAPTER_SDGS, getSdg } from "@/data/sdgs";
 import { SectionHeading } from "@/components/site/Brand";
 import { SdgGrid, SdgWheel } from "@/components/site/Sdg";
 import { ProjectCard } from "@/components/site/ProjectCard";
-import { TreeMapPreview } from "@/components/site/TreeMapPreview";
+// Leaflet is heavy; load the preview map separately so the home page paints sooner.
+const TreeMapPreview = lazy(() =>
+  import("@/components/site/TreeMapPreview").then((m) => ({ default: m.TreeMapPreview }))
+);
 
+import { STATIC_PAGES } from "@/lib/seo-core";
+import { usePageMeta } from "@/lib/seo";
 const Stat = ({ value, label, loading }: { value: number | string; label: string; loading?: boolean }) => (
   <div className="rounded-2xl border border-white/15 bg-white/10 px-5 py-4 backdrop-blur-sm">
     <p className="font-display text-3xl font-black text-white md:text-4xl">
@@ -21,6 +27,7 @@ const Stat = ({ value, label, loading }: { value: number | string; label: string
 );
 
 const Index = () => {
+  usePageMeta(STATIC_PAGES["/"]);
   const { totalTrees, activePlanters, treeSpecies, loading } = useStatistics();
   const { data: projects, isLoading: projectsLoading } = useProjects();
   const { data: settings } = useSiteSettings();
@@ -35,13 +42,22 @@ const Index = () => {
     <Layout>
       {/* Hero */}
       <section className="relative isolate overflow-hidden bg-brand-navy-deep">
-        <img
-          src="/images/hero/unau-group.jpg"
-          srcSet="/images/hero/unau-group-md.jpg 1000w, /images/hero/unau-group.jpg 2000w"
-          sizes="100vw"
-          alt="Members of the UNAU Kyambogo chapter together on the Kyambogo University grounds"
-          className="absolute inset-0 -z-10 h-full w-full object-cover object-[60%_30%]"
-        />
+        <picture>
+          <source
+            type="image/webp"
+            srcSet="/images/hero/unau-group-md.webp 1000w, /images/hero/unau-group.webp 2000w"
+            sizes="100vw"
+          />
+          <img
+            src="/images/hero/unau-group.jpg"
+            srcSet="/images/hero/unau-group-md.jpg 1000w, /images/hero/unau-group.jpg 2000w"
+            sizes="100vw"
+            width={2000}
+            height={1333}
+            alt="Members of the UNAU Kyambogo chapter together on the Kyambogo University grounds"
+            className="absolute inset-0 -z-10 h-full w-full object-cover object-[60%_30%]"
+          />
+        </picture>
         <div className="absolute inset-0 -z-10 bg-gradient-to-t from-brand-navy-deep via-brand-navy-deep/80 to-brand-navy-deep/30 md:bg-gradient-to-r md:from-brand-navy-deep md:via-brand-navy-deep/85 md:to-transparent" />
 
         <div className="container flex min-h-[640px] flex-col justify-end pb-12 pt-40 md:min-h-[720px] md:justify-center md:pb-20 md:pt-24">
@@ -169,7 +185,9 @@ const Index = () => {
             className="group relative block overflow-hidden rounded-3xl border-4 border-white/10 shadow-2xl"
             aria-label="Open the full tree map"
           >
-            <TreeMapPreview className="h-[380px] w-full md:h-[480px]" />
+            <Suspense fallback={<div className="h-[380px] w-full bg-brand-navy-deep md:h-[480px]" />}>
+              <TreeMapPreview className="h-[380px] w-full md:h-[480px]" />
+            </Suspense>
             <div className="pointer-events-none absolute inset-x-4 bottom-4 flex items-center justify-between gap-3 rounded-2xl bg-white/95 p-4 text-primary shadow-lg backdrop-blur">
               <div className="flex items-center gap-3">
                 <span className="flex h-10 w-10 items-center justify-center rounded-full bg-secondary text-white">

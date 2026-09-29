@@ -9,6 +9,8 @@ import { CHAPTER, MEMBER_BENEFITS, PILLARS } from "@/data/chapter";
 import { CHAPTER_SDGS, SDGS } from "@/data/sdgs";
 import { applicationsAreOpen, useSiteSettings, useTeam, type TeamMember, useChapterContact } from "@/hooks/use-site";
 
+import { STATIC_PAGES } from "@/lib/seo-core";
+import { usePageMeta } from "@/lib/seo";
 const SDG_WORK: Record<number, string> = {
   3: "Health outreaches, hygiene and menstrual-health talks, and this semester's focus on well-being.",
   4: "Mentorship in schools and civic-education debates on X-Spaces.",
@@ -56,6 +58,7 @@ const MemberCard = ({ member, index }: { member: TeamMember; index: number }) =>
 };
 
 const About = () => {
+  usePageMeta(STATIC_PAGES["/about"]);
   const { hash } = useLocation();
   const { data: team, isLoading: teamLoading } = useTeam();
   const { data: settings } = useSiteSettings();

@@ -6,7 +6,8 @@
   "scripts": {
     "dev": "vite",
     "dev:local": "vite --mode localstack",
-    "build": "vite build",
+    "build": "node scripts/build.mjs",
+    "build:spa": "vite build",
     "build:dev": "vite build --mode development",
     "lint": "eslint .",
     "preview": "vite preview"

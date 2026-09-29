@@ -9,12 +9,15 @@ import { toast } from "sonner";
 import { Leaf } from "lucide-react";
 import { z } from "zod";
 
+import { PRIVATE_PAGE } from "@/lib/seo-core";
+import { usePageMeta } from "@/lib/seo";
 // Input validation schemas
 const emailSchema = z.string().trim().email("Please enter a valid email address").max(255, "Email is too long");
 const passwordSchema = z.string().min(6, "Password must be at least 6 characters").max(72, "Password is too long");
 const fullNameSchema = z.string().trim().min(1, "Name is required").max(100, "Name is too long");
 
 const Auth = () => {
+  usePageMeta(PRIVATE_PAGE("Sign in", "/auth"));
   const [isSignUp, setIsSignUp] = useState(false);
   const [loading, setLoading] = useState(false);
   const [checkingSession, setCheckingSession] = useState(true);

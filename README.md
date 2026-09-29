@@ -32,6 +32,13 @@ VITE_SUPABASE_URL=http://127.0.0.1:54321
 VITE_SUPABASE_PUBLISHABLE_KEY=<local anon key>
 ```
 
+## SEO
+
+`npm run build` runs `scripts/build.mjs`: a normal Vite build, then a prerender step that writes a real HTML file for every public page and every published project. Each file has its own title, description, canonical URL, share preview (WhatsApp, X, Facebook, LinkedIn) and structured data. The step also generates `sitemap.xml` and `robots.txt`. Page wording lives in `src/lib/seo-core.ts`.
+
+- Projects added in `/admin` get their page and sitemap entry on the next deploy. In Netlify, add a **build hook** and trigger it after publishing, or just redeploy.
+- The site address defaults to `https://unaukyambogo.netlify.app`. When you add a custom domain, Netlify's production builds pick it up automatically. For other hosts, set `VITE_SITE_URL`.
+
 ## Deploying database changes
 
 Migrations live in `supabase/migrations`. To apply them to the live project:

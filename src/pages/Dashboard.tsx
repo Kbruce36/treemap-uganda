@@ -25,6 +25,8 @@ import {
 } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 
+import { STATIC_PAGES } from "@/lib/seo-core";
+import { usePageMeta } from "@/lib/seo";
 interface ChatMessage {
   role: "user" | "model";
   parts: string;
@@ -63,6 +65,7 @@ const SUGGESTED_QUESTIONS = [
 ];
 
 const Dashboard = () => {
+  usePageMeta(STATIC_PAGES["/dashboard"]);
   const navigate = useNavigate();
   const { totalTrees, activePlanters, treeSpecies, loading } = useStatistics();
   const { session, loading: sessionLoading } = useSession();

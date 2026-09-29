@@ -8,7 +8,10 @@ import { cn } from "@/lib/utils";
 import { PROJECT_CATEGORIES } from "@/data/chapter";
 import { useProjects } from "@/hooks/use-site";
 
+import { STATIC_PAGES } from "@/lib/seo-core";
+import { usePageMeta } from "@/lib/seo";
 const Projects = () => {
+  usePageMeta(STATIC_PAGES["/projects"]);
   const { data, isLoading, error } = useProjects();
   const [category, setCategory] = useState<string | null>(null);
   const [sdg, setSdg] = useState<number | null>(null);

@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import { Link, NavLink, Outlet, useNavigate } from "react-router-dom";
 import { useQueryClient } from "@tanstack/react-query";
 import {
@@ -23,6 +23,8 @@ import { supabase } from "@/integrations/supabase/client";
 import { cn } from "@/lib/utils";
 import { useIsAdmin } from "@/hooks/use-site";
 import { SdgStripe } from "@/components/Layout";
+import { PRIVATE_PAGE } from "@/lib/seo-core";
+import { usePageMeta } from "@/lib/seo";
 
 const ADMIN_NAV = [
   { to: "/admin", label: "Overview", icon: LayoutDashboard, end: true },
@@ -32,21 +34,6 @@ const ADMIN_NAV = [
   { to: "/admin/trees", label: "Trees", icon: TreeDeciduous },
   { to: "/admin/settings", label: "Settings", icon: Settings },
 ];
-
-const useNoIndex = () => {
-  useEffect(() => {
-    const meta = document.createElement("meta");
-    meta.name = "robots";
-    meta.content = "noindex, nofollow";
-    document.head.appendChild(meta);
-    const previousTitle = document.title;
-    document.title = "Admin · UNAU Kyambogo";
-    return () => {
-      meta.remove();
-      document.title = previousTitle;
-    };
-  }, []);
-};
 
 const AdminSignIn = () => {
   const [email, setEmail] = useState("");
@@ -114,7 +101,7 @@ const AdminNav = ({ onNavigate }: { onNavigate?: () => void }) => (
 );
 
 const AdminLayout = () => {
-  useNoIndex();
+  usePageMeta(PRIVATE_PAGE("Admin", "/admin"));
   const navigate = useNavigate();
   const queryClient = useQueryClient();
   const { session, isAdmin, loading } = useIsAdmin();

@@ -15,6 +15,8 @@ import { PageHero } from "@/components/site/Brand";
 import { supabase } from "@/integrations/supabase/client";
 import { applicationsAreOpen, usePositions, useSiteSettings, useChapterContact } from "@/hooks/use-site";
 
+import { STATIC_PAGES } from "@/lib/seo-core";
+import { usePageMeta } from "@/lib/seo";
 const schema = z.object({
   full_name: z.string().trim().min(2, "Please enter your full name").max(120),
   email: z.string().trim().email("Please enter a valid email address").max(255),
@@ -58,6 +60,7 @@ const FieldError = ({ message }: { message?: string }) =>
   message ? <p className="text-sm text-destructive">{message}</p> : null;
 
 const Apply = () => {
+  usePageMeta(STATIC_PAGES["/apply"]);
   const { data: settings, isLoading: settingsLoading } = useSiteSettings();
   const contact = useChapterContact();
   const { data: positions } = usePositions();

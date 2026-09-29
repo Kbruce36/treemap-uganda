@@ -29,6 +29,8 @@ import {
   todayISO,
 } from "@/lib/coords";
 
+import { STATIC_PAGES } from "@/lib/seo-core";
+import { usePageMeta } from "@/lib/seo";
 // Tree data is user-supplied and Leaflet popups are raw HTML, so escape everything.
 const escapeHtml = (value: unknown) =>
   String(value ?? "").replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" })[c]!);
@@ -60,6 +62,7 @@ interface Tree {
 }
 
 const MapPage = () => {
+  usePageMeta(STATIC_PAGES["/map"]);
   const [session, setSession] = useState<Session | null>(null);
   const [trees, setTrees] = useState<Tree[]>([]);
   const [isDialogOpen, setIsDialogOpen] = useState(false);

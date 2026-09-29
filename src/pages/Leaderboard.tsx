@@ -7,6 +7,8 @@ import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import { Trophy, Leaf, Medal } from "lucide-react";
 
+import { STATIC_PAGES } from "@/lib/seo-core";
+import { usePageMeta } from "@/lib/seo";
 interface LeaderboardEntry {
   user_id: string;
   full_name: string;
@@ -15,6 +17,7 @@ interface LeaderboardEntry {
 }
 
 const Leaderboard = () => {
+  usePageMeta(STATIC_PAGES["/leaderboard"]);
   const [leaderboard, setLeaderboard] = useState<LeaderboardEntry[]>([]);
   const [loading, setLoading] = useState(true);
   const navigate = useNavigate();

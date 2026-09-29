@@ -8,6 +8,8 @@ import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import { MapPin, Leaf, ArrowLeft, Calendar, Info } from "lucide-react";
 
+import { PRIVATE_PAGE } from "@/lib/seo-core";
+import { usePageMeta } from "@/lib/seo";
 interface TreeLocation {
   id: string;
   species: string | null;
@@ -25,6 +27,7 @@ interface UserProfile {
 
 const UserTrees = () => {
   const { userId } = useParams();
+  usePageMeta(PRIVATE_PAGE("Planter", `/user/${userId}/trees`));
   const navigate = useNavigate();
   const [trees, setTrees] = useState<TreeLocation[]>([]);
   const [userProfile, setUserProfile] = useState<UserProfile | null>(null);

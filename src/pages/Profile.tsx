@@ -21,6 +21,8 @@ import {
   todayISO,
 } from "@/lib/coords";
 
+import { PRIVATE_PAGE } from "@/lib/seo-core";
+import { usePageMeta } from "@/lib/seo";
 interface UserProfile {
   full_name: string;
   email: string;
@@ -39,6 +41,7 @@ interface Tree {
 }
 
 const Profile = () => {
+  usePageMeta(PRIVATE_PAGE("My trees", "/profile"));
   const [session, setSession] = useState<Session | null>(null);
   const [profile, setProfile] = useState<UserProfile | null>(null);
   const [trees, setTrees] = useState<Tree[]>([]);

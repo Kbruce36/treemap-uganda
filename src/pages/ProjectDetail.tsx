@@ -12,11 +12,14 @@ import { getSdg } from "@/data/sdgs";
 import { parseImpact, useProject, useProjects } from "@/hooks/use-site";
 import NotFound from "./NotFound";
 
+import { projectPageMeta } from "@/lib/seo-core";
+import { usePageMeta } from "@/lib/seo";
 const ProjectDetail = () => {
   const { slug } = useParams();
   const { data: project, isLoading } = useProject(slug);
   const { data: all } = useProjects();
   const [lightbox, setLightbox] = useState<string | null>(null);
+  usePageMeta(project ? projectPageMeta(project) : null);
 
   if (isLoading) {
     return (
@@ -156,7 +159,7 @@ const ProjectDetail = () => {
                 onClick={() => setLightbox(src)}
                 className={`group overflow-hidden rounded-xl ${i === 0 ? "col-span-2 row-span-2" : ""}`}
               >
-                <img src={src} alt="" loading="lazy" className="h-full w-full object-cover transition-transform duration-500 group-hover:scale-105" />
+                <img src={src} alt={`${project.title}, photo ${i + 1}`} loading="lazy" className="h-full w-full object-cover transition-transform duration-500 group-hover:scale-105" />
               </button>
             ))}
           </div>
@@ -179,7 +182,7 @@ const ProjectDetail = () => {
       <Dialog open={!!lightbox} onOpenChange={(open) => !open && setLightbox(null)}>
         <DialogContent className="max-w-5xl border-0 bg-transparent p-0 shadow-none">
           <DialogTitle className="sr-only">{project.title}</DialogTitle>
-          {lightbox && <img src={lightbox} alt="" className="max-h-[85vh] w-full rounded-xl object-contain" />}
+          {lightbox && <img src={lightbox} alt={`${project.title}, enlarged photo`} className="max-h-[85vh] w-full rounded-xl object-contain" />}
         </DialogContent>
       </Dialog>
     </Layout>
