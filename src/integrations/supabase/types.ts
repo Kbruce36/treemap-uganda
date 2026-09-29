@@ -20,7 +20,6 @@ export type Database = {
           full_name: string
           id: string
           motivation: string | null
-          notified_at: string | null
           phone: string
           position_id: string
           status: string
@@ -37,7 +36,6 @@ export type Database = {
           full_name: string
           id?: string
           motivation?: string | null
-          notified_at?: string | null
           phone: string
           position_id: string
           status?: string
@@ -54,7 +52,6 @@ export type Database = {
           full_name?: string
           id?: string
           motivation?: string | null
-          notified_at?: string | null
           phone?: string
           position_id?: string
           status?: string
@@ -202,7 +199,6 @@ export type Database = {
           id: number
           instagram_handle: string
           membership_fee: string
-          notification_email: string | null
           sdg_focus: number
           updated_at: string
           x_handle: string
@@ -217,7 +213,6 @@ export type Database = {
           id?: number
           instagram_handle?: string
           membership_fee?: string
-          notification_email?: string | null
           sdg_focus?: number
           updated_at?: string
           x_handle?: string
@@ -232,7 +227,6 @@ export type Database = {
           id?: number
           instagram_handle?: string
           membership_fee?: string
-          notification_email?: string | null
           sdg_focus?: number
           updated_at?: string
           x_handle?: string

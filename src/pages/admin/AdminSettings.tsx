@@ -110,7 +110,6 @@ const AdminSettings = () => {
     membership_fee: "",
     instagram_handle: "",
     x_handle: "",
-    notification_email: "",
   });
   const [newPosition, setNewPosition] = useState("");
 
@@ -127,7 +126,6 @@ const AdminSettings = () => {
       membership_fee: settings.membership_fee,
       instagram_handle: settings.instagram_handle,
       x_handle: settings.x_handle,
-      notification_email: settings.notification_email ?? "",
     });
   }, [settings]);
 
@@ -151,7 +149,6 @@ const AdminSettings = () => {
           membership_fee: form.membership_fee.trim(),
           instagram_handle: form.instagram_handle.trim().replace(/^@/, ""),
           x_handle: form.x_handle.trim().replace(/^@/, ""),
-          notification_email: form.notification_email.trim() || null,
         })
         .eq("id", 1);
       if (error) throw error;
@@ -298,13 +295,6 @@ const AdminSettings = () => {
                 <Input id="x-handle" placeholder="UnauKYU" {...field("x_handle")} />
               </div>
             </div>
-          </Card>
-
-          <Card
-            title="Application emails"
-            description="Every new cabinet application is emailed here as well as appearing under Applications. Leave empty to turn emails off."
-          >
-            <Input id="notification-email" type="email" placeholder="unaukyambogo@gmail.com" {...field("notification_email")} />
           </Card>
 
           <Card title="Adding another admin" description="Admins are granted from the Supabase SQL editor, never from the website.">

@@ -94,11 +94,7 @@ const Apply = () => {
 
     setSubmitting(true);
     const d = parsed.data;
-    // Applicants can't read rows back, so the id is generated here to tell the
-    // notify-application function which application to email.
-    const id = crypto.randomUUID();
     const { error } = await supabase.from("executive_applications").insert({
-      id,
       full_name: d.full_name!,
       email: d.email!,
       phone: d.phone!,
@@ -120,9 +116,6 @@ const Apply = () => {
       );
       return;
     }
-    // Email the chapter inbox. Best effort: the application is already saved and visible in /admin.
-    supabase.functions.invoke("notify-application", { body: { application_id: id } }).catch(() => undefined);
-
     setSubmitted(true);
     setForm(EMPTY);
     window.scrollTo({ top: 0, behavior: "smooth" });
