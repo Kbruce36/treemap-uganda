@@ -1,239 +1,343 @@
-import { Layout } from "@/components/Layout";
+import { Link } from "react-router-dom";
+import { ArrowRight, Camera, Leaf, Loader2, MapPin, Sprout, Trophy, Users } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent } from "@/components/ui/card";
-import { useNavigate } from "react-router-dom";
-import { Leaf, Map, Trophy, ArrowRight, Loader2 } from "lucide-react";
+import { Layout } from "@/components/Layout";
 import { useStatistics } from "@/hooks/use-statistics";
+import { applicationsAreOpen, useProjects, useSiteSettings, useChapterContact } from "@/hooks/use-site";
+import { CHAPTER, MEMBER_BENEFITS, PILLARS } from "@/data/chapter";
+import { CHAPTER_SDGS, getSdg } from "@/data/sdgs";
+import { SectionHeading } from "@/components/site/Brand";
+import { SdgGrid, SdgWheel } from "@/components/site/Sdg";
+import { ProjectCard } from "@/components/site/ProjectCard";
+import { TreeMapPreview } from "@/components/site/TreeMapPreview";
+
+const Stat = ({ value, label, loading }: { value: number | string; label: string; loading?: boolean }) => (
+  <div className="rounded-2xl border border-white/15 bg-white/10 px-5 py-4 backdrop-blur-sm">
+    <p className="font-display text-3xl font-black text-white md:text-4xl">
+      {loading ? <Loader2 className="h-7 w-7 animate-spin" /> : typeof value === "number" ? value.toLocaleString() : value}
+    </p>
+    <p className="mt-1 text-xs font-semibold uppercase tracking-wider text-white/70">{label}</p>
+  </div>
+);
 
 const Index = () => {
-  const navigate = useNavigate();
-  const { totalTrees, activePlanters, treeSpecies, loading, error } = useStatistics();
+  const { totalTrees, activePlanters, treeSpecies, loading } = useStatistics();
+  const { data: projects, isLoading: projectsLoading } = useProjects();
+  const { data: settings } = useSiteSettings();
+  const contact = useChapterContact();
+  const appsOpen = applicationsAreOpen(settings);
+
+  const published = (projects ?? []).filter((p) => p.is_published);
+  const featured = (published.some((p) => p.is_featured) ? published.filter((p) => p.is_featured) : published).slice(0, 3);
+  const focus = getSdg(settings?.sdg_focus ?? 3);
 
   return (
     <Layout>
-      {/* Hero Section */}
-      <section className="relative overflow-hidden">
-        <div className="absolute inset-0 gradient-hero opacity-10"></div>
-        <div className="container mx-auto px-4 py-20 md:py-32 relative">
-          <div className="max-w-4xl mx-auto text-center">
-            <div className="w-24 h-24 gradient-hero rounded-3xl flex items-center justify-center mx-auto mb-8 shadow-glow animate-pulse">
-              <Leaf className="w-14 h-14 text-primary-foreground" />
+      {/* Hero */}
+      <section className="relative isolate overflow-hidden bg-brand-navy-deep">
+        <img
+          src="/images/hero/unau-group.jpg"
+          srcSet="/images/hero/unau-group-md.jpg 1000w, /images/hero/unau-group.jpg 2000w"
+          sizes="100vw"
+          alt="Members of the UNAU Kyambogo chapter together on the Kyambogo University grounds"
+          className="absolute inset-0 -z-10 h-full w-full object-cover object-[60%_30%]"
+        />
+        <div className="absolute inset-0 -z-10 bg-gradient-to-t from-brand-navy-deep via-brand-navy-deep/80 to-brand-navy-deep/30 md:bg-gradient-to-r md:from-brand-navy-deep md:via-brand-navy-deep/85 md:to-transparent" />
+
+        <div className="container flex min-h-[640px] flex-col justify-end pb-12 pt-40 md:min-h-[720px] md:justify-center md:pb-20 md:pt-24">
+          <div className="max-w-2xl">
+            <div className="inline-flex items-center gap-2 rounded-full border border-white/20 bg-white/10 px-3 py-1.5 backdrop-blur">
+              <img src="/images/brand/unau-logo-sm.png" alt="" className="h-6 w-auto rounded-full bg-white p-0.5" />
+              <span className="text-xs font-semibold text-white/90">{CHAPTER.name} · {CHAPTER.chapter}</span>
             </div>
-            <h1 className="text-5xl md:text-7xl font-bold mb-6 bg-gradient-to-r from-primary to-secondary bg-clip-text text-transparent">
-              Greentrack
+            <h1 className="mt-6 font-display text-5xl font-black leading-[0.95] text-white sm:text-6xl md:text-7xl">
+              Global Goals.
+              <br />
+              <span className="text-secondary">Local Action.</span>
             </h1>
-            <p className="text-xl md:text-2xl text-muted-foreground mb-8 max-w-2xl mx-auto">
-              Join our community in making Kyambogo University greener. Track, map, and celebrate every tree we plant together.
+            <div className="mt-6 h-1.5 w-28 rounded-full bg-brand-gold" />
+            <p className="mt-6 max-w-xl text-lg text-white/85 md:text-xl">
+              We are Kyambogo University students putting the UN Sustainable Development Goals to work, from
+              X-Space debates and village outreaches to mapping every tree we plant.
             </p>
-            <div className="flex flex-col sm:flex-row gap-4 justify-center">
-              <Button
-                variant="hero"
-                size="lg"
-                onClick={() => navigate("/map")}
-                className="text-lg"
-              >
-                Start Planting
-                <ArrowRight className="w-5 h-5" />
+            <div className="mt-8 flex flex-col gap-3 sm:flex-row">
+              <Button asChild size="lg" className="h-12 bg-secondary px-6 text-base font-bold hover:bg-brand-green-dark">
+                <Link to="/map">
+                  <MapPin className="h-5 w-5" /> Explore the Tree Map
+                </Link>
               </Button>
               <Button
+                asChild
+                size="lg"
                 variant="outline"
-                size="lg"
-                onClick={() => navigate("/leaderboard")}
-                className="text-lg"
+                className="h-12 border-white/40 bg-white/5 px-6 text-base font-bold text-white hover:bg-white hover:text-primary"
               >
-                View Leaderboard
+                <Link to="/projects">
+                  See our impact <ArrowRight className="h-5 w-5" />
+                </Link>
               </Button>
             </div>
           </div>
-        </div>
-      </section>
 
-      {/* Explore Section */}
-      <section className="py-16 md:py-24 bg-muted/30">
-        <div className="container mx-auto px-4">
-          <div className="text-center mb-12">
-            <h2 className="text-3xl md:text-4xl font-bold mb-4">Explore Our Impact</h2>
-            <p className="text-muted-foreground text-lg max-w-2xl mx-auto">
-              No account needed to see what we've accomplished together
-            </p>
-          </div>
-
-          <div className="grid md:grid-cols-2 gap-8 max-w-4xl mx-auto mb-8">
-            <Card className="shadow-card hover:shadow-glow transition-all duration-300 border-2 border-transparent hover:border-primary/20">
-              <CardContent className="pt-8">
-                <div className="w-16 h-16 bg-primary rounded-2xl flex items-center justify-center mb-6 shadow-sm">
-                  <Map className="w-8 h-8 text-primary-foreground" />
-                </div>
-                <h3 className="text-xl font-bold mb-3">View the Tree Map</h3>
-                <p className="text-muted-foreground mb-6">
-                  Browse the interactive map to see every tree planted across Kyambogo University campus. View locations, species, and planting details.
-                </p>
-                <Button variant="outline" onClick={() => navigate("/map")} className="w-full">
-                  Explore Map
-                  <ArrowRight className="w-4 h-4 ml-2" />
-                </Button>
-              </CardContent>
-            </Card>
-
-            <Card className="shadow-card hover:shadow-glow transition-all duration-300 border-2 border-transparent hover:border-secondary/20">
-              <CardContent className="pt-8">
-                <div className="w-16 h-16 bg-secondary rounded-2xl flex items-center justify-center mb-6 shadow-sm">
-                  <Trophy className="w-8 h-8 text-secondary-foreground" />
-                </div>
-                <h3 className="text-xl font-bold mb-3">Check the Leaderboard</h3>
-                <p className="text-muted-foreground mb-6">
-                  See who's leading the green movement! View rankings of top planters and celebrate our community's collective environmental impact.
-                </p>
-                <Button variant="outline" onClick={() => navigate("/leaderboard")} className="w-full">
-                  View Rankings
-                  <ArrowRight className="w-4 h-4 ml-2" />
-                </Button>
-              </CardContent>
-            </Card>
-          </div>
-
-          <div className="text-center">
-            <p className="text-muted-foreground mb-4">
-              Ready to contribute? Sign in to start planting your own trees!
-            </p>
-            <Button variant="hero" size="lg" onClick={() => navigate("/auth")}>
-              Get Started
-              <ArrowRight className="w-5 h-5" />
-            </Button>
+          <div className="mt-12 grid max-w-3xl grid-cols-2 gap-3 sm:grid-cols-4">
+            <Stat value={totalTrees} label="Trees mapped" loading={loading} />
+            <Stat value={activePlanters} label="Planters" loading={loading} />
+            <Stat value={treeSpecies} label="Species" loading={loading} />
+            <Stat value="11" label="UNAU university chapters" />
           </div>
         </div>
       </section>
 
-      {/* Features Section */}
-      <section className="py-16 md:py-24">
-        <div className="container mx-auto px-4">
-          <div className="text-center mb-16">
-            <h2 className="text-3xl md:text-4xl font-bold mb-4">How to Plant Trees</h2>
-            <p className="text-muted-foreground text-lg max-w-2xl mx-auto">
-              Three simple steps to make a lasting environmental impact
-            </p>
-          </div>
-
-          <div className="grid md:grid-cols-3 gap-8 max-w-5xl mx-auto">
-            <Card className="shadow-card hover:shadow-glow transition-all duration-300 border-2 border-transparent hover:border-primary/20">
-              <CardContent className="pt-8 text-center">
-                <div className="w-16 h-16 bg-primary rounded-2xl flex items-center justify-center mx-auto mb-6 shadow-sm">
-                  <Map className="w-8 h-8 text-primary-foreground" />
-                </div>
-                <h3 className="text-xl font-bold mb-3">Pin Your Tree</h3>
-                <p className="text-muted-foreground">
-                  Click anywhere on the interactive map to mark where you've planted a tree
-                </p>
-              </CardContent>
-            </Card>
-
-            <Card className="shadow-card hover:shadow-glow transition-all duration-300 border-2 border-transparent hover:border-secondary/20">
-              <CardContent className="pt-8 text-center">
-                <div className="w-16 h-16 bg-secondary rounded-2xl flex items-center justify-center mx-auto mb-6 shadow-sm">
-                  <Leaf className="w-8 h-8 text-secondary-foreground" />
-                </div>
-                <h3 className="text-xl font-bold mb-3">Add Details</h3>
-                <p className="text-muted-foreground">
-                  Record the species, date, and any special notes about your tree
-                </p>
-              </CardContent>
-            </Card>
-
-            <Card className="shadow-card hover:shadow-glow transition-all duration-300 border-2 border-transparent hover:border-accent/20">
-              <CardContent className="pt-8 text-center">
-                <div className="w-16 h-16 bg-accent rounded-2xl flex items-center justify-center mx-auto mb-6 shadow-sm">
-                  <Trophy className="w-8 h-8 text-accent-foreground" />
-                </div>
-                <h3 className="text-xl font-bold mb-3">Track Impact</h3>
-                <p className="text-muted-foreground">
-                  See your contribution grow and compete on the leaderboard
-                </p>
-              </CardContent>
-            </Card>
-          </div>
-        </div>
-      </section>
-
-      {/* Stats Section */}
-      <section className="py-16 md:py-24 gradient-subtle">
-        <div className="container mx-auto px-4">
-          <div className="max-w-4xl mx-auto">
-        <Card className="shadow-glow border-2 border-primary/10">
-          <CardContent className="p-8 md:p-12">
-            <div className="text-center mb-12">
-              <h2 className="text-3xl md:text-4xl font-bold mb-4">Our Growing Impact</h2>
-              <p className="text-muted-foreground text-lg">
-                Real-time statistics from our community's tree planting efforts
-              </p>
-              {error && (
-                <p className="text-destructive text-sm mt-2">
-                  Unable to load current statistics. Please try again later.
-                </p>
-              )}
+      {/* Who we are */}
+      <section className="container grid items-center gap-14 py-20 md:py-28 lg:grid-cols-[1.1fr_1fr]">
+        <div>
+          <SectionHeading eyebrow="Who we are" title={<>What is <span className="text-secondary">UNA-Uganda?</span></>} />
+          <p className="mt-6 text-lg leading-relaxed text-foreground/80">{CHAPTER.description}</p>
+          <dl className="mt-8 grid gap-4 sm:grid-cols-2">
+            <div className="rounded-2xl border-l-4 border-brand-gold bg-card p-5 shadow-card">
+              <dt className="font-display text-xs font-bold uppercase tracking-widest text-brand-gold">Mission</dt>
+              <dd className="mt-2 font-semibold text-primary">{CHAPTER.mission}</dd>
             </div>
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
-              <div className="text-center">
-                <div className="text-5xl md:text-6xl font-bold bg-gradient-to-r from-primary to-secondary bg-clip-text text-transparent mb-2 min-h-[4rem] flex items-center justify-center">
-                  {loading ? (
-                    <Loader2 className="w-12 h-12 animate-spin text-primary" />
-                  ) : error ? (
-                    <span className="text-2xl text-muted-foreground">--</span>
-                  ) : (
-                    totalTrees.toLocaleString()
-                  )}
-                </div>
-                <p className="text-sm text-muted-foreground uppercase tracking-wider">Trees Planted</p>
-              </div>
-              <div className="text-center">
-                <div className="text-5xl md:text-6xl font-bold bg-gradient-to-r from-secondary to-accent bg-clip-text text-transparent mb-2 min-h-[4rem] flex items-center justify-center">
-                  {loading ? (
-                    <Loader2 className="w-12 h-12 animate-spin text-secondary" />
-                  ) : error ? (
-                    <span className="text-2xl text-muted-foreground">--</span>
-                  ) : (
-                    activePlanters.toLocaleString()
-                  )}
-                </div>
-                <p className="text-sm text-muted-foreground uppercase tracking-wider">Active Planters</p>
-              </div>
-              <div className="text-center">
-                <div className="text-5xl md:text-6xl font-bold bg-gradient-to-r from-accent to-primary bg-clip-text text-transparent mb-2 min-h-[4rem] flex items-center justify-center">
-                  {loading ? (
-                    <Loader2 className="w-12 h-12 animate-spin text-accent" />
-                  ) : error ? (
-                    <span className="text-2xl text-muted-foreground">--</span>
-                  ) : (
-                    treeSpecies.toLocaleString()
-                  )}
-                </div>
-                <p className="text-sm text-muted-foreground uppercase tracking-wider">Tree Species</p>
-              </div>
+            <div className="rounded-2xl border-l-4 border-secondary bg-card p-5 shadow-card">
+              <dt className="font-display text-xs font-bold uppercase tracking-widest text-secondary">Vision</dt>
+              <dd className="mt-2 font-semibold text-primary">{CHAPTER.vision}</dd>
             </div>
-          </CardContent>
-        </Card>
-          </div>
+          </dl>
+          <Button asChild variant="link" className="mt-6 h-auto px-0 text-base font-bold text-primary">
+            <Link to="/about">
+              Meet the chapter <ArrowRight className="h-4 w-4" />
+            </Link>
+          </Button>
+        </div>
+        <div className="flex justify-center">
+          <SdgWheel size={380} spin className="max-w-full" >
+            <img src="/images/brand/unau-logo.png" alt="UNAU logo" className="h-[78%] w-auto" />
+          </SdgWheel>
         </div>
       </section>
 
-      {/* CTA Section */}
-      <section className="py-16 md:py-24">
-        <div className="container mx-auto px-4">
-          <div className="max-w-3xl mx-auto text-center">
-            <h2 className="text-3xl md:text-4xl font-bold mb-6">
-              Ready to Make a Difference?
+      {/* Tree Map feature */}
+      <section className="relative overflow-hidden bg-primary py-20 text-white md:py-28">
+        <div aria-hidden className="absolute -left-32 top-10 h-96 w-96 rounded-full bg-secondary/20 blur-3xl" />
+        <div className="container relative grid items-center gap-12 lg:grid-cols-[1fr_1.15fr]">
+          <div>
+            <p className="font-display text-xs font-bold uppercase tracking-[0.2em] text-brand-gold">Our flagship project</p>
+            <h2 className="mt-3 font-display text-4xl font-black leading-[1.05] md:text-5xl">
+              UNAU TreeMap:
+              <br />
+              <span className="text-secondary">every tree, on the map.</span>
             </h2>
-            <p className="text-muted-foreground text-lg mb-8">
-              Join Greentrack and start planting trees today. Every tree counts towards a greener tomorrow.
+            <p className="mt-6 text-lg text-white/80">
+              Planting is the easy part. Keeping trees alive means knowing where they are. Anyone can sign up, pin the
+              trees they plant and watch our community forest grow in real time.
             </p>
-            <Button
-              variant="hero"
-              size="lg"
-              onClick={() => navigate("/auth")}
-              className="text-lg"
-            >
-              Get Started
-              <Leaf className="w-5 h-5" />
+
+            <ol className="mt-8 space-y-4">
+              {[
+                { icon: MapPin, title: "Pin it", text: "Tap the spot on the map where you planted." },
+                { icon: Camera, title: "Prove it", text: "Add the species, how many trees and up to three photos." },
+                { icon: Sprout, title: "Grow it", text: "GreenBot sends care advice for your tree and the local weather." },
+              ].map((step, i) => (
+                <li key={step.title} className="flex gap-4">
+                  <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-secondary font-display font-black">
+                    {i + 1}
+                  </span>
+                  <div>
+                    <p className="font-display font-bold">{step.title}</p>
+                    <p className="text-sm text-white/70">{step.text}</p>
+                  </div>
+                </li>
+              ))}
+            </ol>
+
+            <div className="mt-10 flex flex-col gap-3 sm:flex-row">
+              <Button asChild size="lg" className="h-12 bg-brand-gold px-6 font-bold text-primary hover:bg-brand-gold/90">
+                <Link to="/map">
+                  <Leaf className="h-5 w-5" /> Plant & map a tree
+                </Link>
+              </Button>
+              <Button asChild size="lg" variant="ghost" className="h-12 px-6 font-bold text-white hover:bg-white/10 hover:text-white">
+                <Link to="/leaderboard">
+                  <Trophy className="h-5 w-5" /> View the leaderboard
+                </Link>
+              </Button>
+            </div>
+          </div>
+
+          <Link
+            to="/map"
+            className="group relative block overflow-hidden rounded-3xl border-4 border-white/10 shadow-2xl"
+            aria-label="Open the full tree map"
+          >
+            <TreeMapPreview className="h-[380px] w-full md:h-[480px]" />
+            <div className="pointer-events-none absolute inset-x-4 bottom-4 flex items-center justify-between gap-3 rounded-2xl bg-white/95 p-4 text-primary shadow-lg backdrop-blur">
+              <div className="flex items-center gap-3">
+                <span className="flex h-10 w-10 items-center justify-center rounded-full bg-secondary text-white">
+                  <Leaf className="h-5 w-5" />
+                </span>
+                <div>
+                  <p className="font-display text-xl font-black leading-none">
+                    {loading ? "…" : totalTrees.toLocaleString()} trees
+                  </p>
+                  <p className="text-xs text-muted-foreground">mapped by {loading ? "…" : activePlanters} planters</p>
+                </div>
+              </div>
+              <span className="inline-flex items-center gap-1 text-sm font-bold text-secondary">
+                Open map <ArrowRight className="h-4 w-4 transition-transform group-hover:translate-x-1" />
+              </span>
+            </div>
+          </Link>
+        </div>
+      </section>
+
+      {/* What we do */}
+      <section className="container py-20 md:py-28">
+        <SectionHeading
+          eyebrow="What the chapter does"
+          title="Be part of something bigger, and build the leadership to go with it."
+          align="center"
+        />
+        <div className="mt-14 grid gap-5 sm:grid-cols-2 lg:grid-cols-5">
+          {PILLARS.map((pillar, i) => {
+            const Icon = pillar.icon;
+            return (
+              <div
+                key={pillar.title}
+                className="group relative overflow-hidden rounded-2xl border border-border/70 bg-card p-6 shadow-card transition hover:-translate-y-1 hover:border-secondary/40"
+              >
+                <span className="absolute right-4 top-3 font-display text-5xl font-black text-muted/80">0{i + 1}</span>
+                <span className="relative flex h-12 w-12 items-center justify-center rounded-xl bg-primary text-white transition group-hover:bg-secondary">
+                  <Icon className="h-6 w-6" />
+                </span>
+                <h3 className="relative mt-5 font-display text-lg font-extrabold text-primary">{pillar.title}</h3>
+                <p className="relative mt-2 text-sm text-muted-foreground">{pillar.description}</p>
+              </div>
+            );
+          })}
+        </div>
+      </section>
+
+      {/* Featured projects */}
+      <section className="bg-muted/60 py-20 md:py-28">
+        <div className="container">
+          <div className="flex flex-col justify-between gap-6 md:flex-row md:items-end">
+            <SectionHeading
+              eyebrow="Projects & impact"
+              title="What we have been up to"
+              lede="Outreaches, conferences, runs and debates, each tied to the Global Goals."
+            />
+            <Button asChild variant="outline" className="shrink-0 border-primary/30 font-bold text-primary">
+              <Link to="/projects">
+                All projects <ArrowRight className="h-4 w-4" />
+              </Link>
             </Button>
+          </div>
+
+          <div className="mt-12 grid gap-6 md:grid-cols-2 lg:grid-cols-3">
+            {projectsLoading
+              ? Array.from({ length: 3 }).map((_, i) => (
+                  <div key={i} className="h-[420px] animate-pulse rounded-2xl bg-card" />
+                ))
+              : featured.map((p) => <ProjectCard key={p.id} project={p} />)}
+          </div>
+          {!projectsLoading && featured.length === 0 && (
+            <p className="mt-8 text-center text-muted-foreground">Projects are on their way.</p>
+          )}
+        </div>
+      </section>
+
+      {/* SDGs */}
+      <section className="container py-20 md:py-28">
+        <div className="grid gap-12 lg:grid-cols-[1fr_1.6fr] lg:items-center">
+          <div>
+            <SectionHeading
+              eyebrow="The 17 Global Goals"
+              title="The goals we work on"
+              lede="Bright tiles are the goals our projects advance. Hover over any goal to see its full name."
+            />
+            {focus && (
+              <div className="mt-8 overflow-hidden rounded-2xl bg-card shadow-card">
+                <div className="bg-primary px-5 py-2 font-display text-[11px] font-bold uppercase tracking-[0.2em] text-white">
+                  Our focus this semester
+                </div>
+                <div className="flex items-center gap-4 p-5">
+                  <span
+                    className="flex h-14 w-14 shrink-0 items-center justify-center rounded-xl text-white"
+                    style={{ backgroundColor: focus.color }}
+                  >
+                    <focus.icon className="h-7 w-7" />
+                  </span>
+                  <p className="font-display text-xl font-extrabold text-primary">
+                    SDG {focus.number}: {focus.title}
+                  </p>
+                </div>
+              </div>
+            )}
+          </div>
+          <SdgGrid active={CHAPTER_SDGS} focus={settings?.sdg_focus ?? 3} />
+        </div>
+      </section>
+
+      {/* Call to action */}
+      <section className="container pb-20 md:pb-28">
+        <div className="relative overflow-hidden rounded-[2rem] bg-brand-cream shadow-card ring-1 ring-border">
+          <img
+            src="/images/brand/unau-logo.png"
+            alt=""
+            aria-hidden
+            className="pointer-events-none absolute -right-16 top-1/2 hidden h-[420px] w-auto -translate-y-1/2 opacity-[0.07] md:block"
+          />
+          <div className="relative grid gap-10 p-8 md:p-14 lg:grid-cols-[1.3fr_1fr] lg:items-center">
+            {appsOpen && settings ? (
+              <div>
+                <p className="eyebrow">{settings.applications_title} · Applications open</p>
+                <h2 className="mt-3 font-display text-5xl font-black leading-[0.95] text-primary md:text-7xl">
+                  Your turn
+                  <br />
+                  <span className="text-brand-green-dark">to lead.</span>
+                </h2>
+                <div className="mt-6 h-1.5 w-full max-w-md rounded-full bg-secondary" />
+                <p className="mt-6 max-w-xl text-lg text-foreground/80">{settings.applications_message}</p>
+                <Button asChild size="lg" className="mt-8 h-12 bg-primary px-8 text-base font-bold">
+                  <Link to="/apply">
+                    Apply now <ArrowRight className="h-5 w-5" />
+                  </Link>
+                </Button>
+              </div>
+            ) : (
+              <div>
+                <p className="eyebrow">Open to every faculty</p>
+                <h2 className="mt-3 font-display text-5xl font-black leading-[0.95] text-primary md:text-7xl">Join us.</h2>
+                <div className="mt-6 h-1.5 w-full max-w-md rounded-full bg-secondary" />
+                <ul className="mt-6 space-y-2 text-foreground/80">
+                  {MEMBER_BENEFITS.map((b) => (
+                    <li key={b} className="flex items-start gap-2">
+                      <Leaf className="mt-1 h-4 w-4 shrink-0 text-secondary" /> {b}
+                    </li>
+                  ))}
+                </ul>
+                <Button asChild size="lg" className="mt-8 h-12 bg-primary px-8 text-base font-bold">
+                  <Link to="/about#join">
+                    How to join <ArrowRight className="h-5 w-5" />
+                  </Link>
+                </Button>
+              </div>
+            )}
+            <div className="grid gap-4">
+              <div className="rounded-2xl bg-secondary p-6 text-white">
+                <p className="font-display text-xs font-bold uppercase tracking-widest text-white/80">Membership</p>
+                <p className="mt-1 font-display text-4xl font-black">{contact.membershipFee}</p>
+                <p className="text-sm font-semibold text-white/80">One-time payment</p>
+              </div>
+              <div className="rounded-2xl bg-primary p-6 text-white">
+                <p className="font-display text-xs font-bold uppercase tracking-widest text-white/70">
+                  <Users className="mr-1 inline h-4 w-4" /> Questions? Call the chapter
+                </p>
+                <a href={contact.phoneHref} className="mt-1 block font-display text-3xl font-black text-secondary hover:underline">
+                  {contact.phone}
+                </a>
+              </div>
+            </div>
           </div>
         </div>
       </section>

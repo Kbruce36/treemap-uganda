@@ -12,6 +12,14 @@ import { toast } from "sonner";
 import { Session } from "@supabase/supabase-js";
 import { useNavigate } from "react-router-dom";
 import { Leaf, User, Calendar, Pencil, Trash2 } from "lucide-react";
+import {
+  MIN_PLANTED_DATE,
+  isValidLatLng,
+  parseCoordinate,
+  parseCoordinatePair,
+  plantedDateError,
+  todayISO,
+} from "@/lib/coords";
 
 interface UserProfile {
   full_name: string;
@@ -42,6 +50,9 @@ const Profile = () => {
   const [editSpecies, setEditSpecies] = useState("");
   const [editTreeCount, setEditTreeCount] = useState(1);
   const [editNotes, setEditNotes] = useState("");
+  const [editPlantedDate, setEditPlantedDate] = useState("");
+  const [editLat, setEditLat] = useState("");
+  const [editLng, setEditLng] = useState("");
   const [deleteConfirmId, setDeleteConfirmId] = useState<string | null>(null);
   const navigate = useNavigate();
 
@@ -131,10 +142,38 @@ const Profile = () => {
     setEditSpecies(tree.species || "");
     setEditTreeCount(tree.tree_count || 1);
     setEditNotes(tree.notes || "");
+    setEditPlantedDate(tree.planted_date || todayISO());
+    setEditLat(String(tree.latitude));
+    setEditLng(String(tree.longitude));
+  };
+
+  /** Accepts a pasted "lat, lng" pair in either coordinate box. */
+  const handleEditCoord = (field: "lat" | "lng", value: string) => {
+    const pair = parseCoordinatePair(value);
+    if (pair) {
+      setEditLat(String(pair.lat));
+      setEditLng(String(pair.lng));
+    } else if (field === "lat") {
+      setEditLat(value);
+    } else {
+      setEditLng(value);
+    }
   };
 
   const handleUpdateTree = async () => {
     if (!editingTree) return;
+
+    const lat = parseCoordinate(editLat);
+    const lng = parseCoordinate(editLng);
+    if (lat === null || lng === null || !isValidLatLng(lat, lng)) {
+      toast.error("Enter a valid latitude and longitude.");
+      return;
+    }
+    const dateError = plantedDateError(editPlantedDate);
+    if (dateError) {
+      toast.error(dateError);
+      return;
+    }
 
     setLoading(true);
     const { error } = await supabase
@@ -143,6 +182,9 @@ const Profile = () => {
         species: editSpecies || null,
         tree_count: editTreeCount,
         notes: editNotes || null,
+        planted_date: editPlantedDate,
+        latitude: lat,
+        longitude: lng,
       })
       .eq("id", editingTree.id);
 
@@ -357,6 +399,27 @@ const Profile = () => {
                   value={editTreeCount}
                   onChange={(e) => setEditTreeCount(parseInt(e.target.value) || 1)}
                 />
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="editPlantedDate">Date planted</Label>
+                <Input
+                  id="editPlantedDate"
+                  type="date"
+                  min={MIN_PLANTED_DATE}
+                  max={todayISO()}
+                  value={editPlantedDate}
+                  onChange={(e) => setEditPlantedDate(e.target.value)}
+                />
+              </div>
+              <div className="grid grid-cols-2 gap-2">
+                <div className="space-y-2">
+                  <Label htmlFor="editLat">Latitude</Label>
+                  <Input id="editLat" inputMode="decimal" value={editLat} onChange={(e) => handleEditCoord("lat", e.target.value)} />
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="editLng">Longitude</Label>
+                  <Input id="editLng" inputMode="decimal" value={editLng} onChange={(e) => handleEditCoord("lng", e.target.value)} />
+                </div>
               </div>
               <div className="space-y-2">
                 <Label htmlFor="editNotes">Notes</Label>

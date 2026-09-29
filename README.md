@@ -1,73 +1,64 @@
-# Welcome to your Lovable project
+# UNAU Kyambogo website
 
-## Project info
+Official website of the **United Nations Association of Uganda, Kyambogo University Chapter**:
+*Global Goals. Local Action.*
 
-**URL**: https://lovable.dev/projects/b7822bc9-e7e0-4772-a6d5-293d299747c7
+- **Public site:** home, about and team, projects and impact, executive applications (`/apply`)
+- **UNAU TreeMap:** map every tree planted, with photos, a leaderboard and GreenBot care advice
+- **Admin** at `/admin` (not linked publicly): applications, projects, team, tree moderation, site settings
 
-## How can I edit this code?
+Stack: Vite + React + TypeScript, Tailwind and shadcn/ui, Supabase (Postgres, Auth, Storage, Edge Functions), Leaflet, Gemini (server-side only).
 
-There are several ways of editing your application.
-
-**Use Lovable**
-
-Simply visit the [Lovable Project](https://lovable.dev/projects/b7822bc9-e7e0-4772-a6d5-293d299747c7) and start prompting.
-
-Changes made via Lovable will be committed automatically to this repo.
-
-**Use your preferred IDE**
-
-If you want to work locally using your own IDE, you can clone this repo and push changes. Pushed changes will also be reflected in Lovable.
-
-The only requirement is having Node.js & npm installed - [install with nvm](https://github.com/nvm-sh/nvm#installing-and-updating)
-
-Follow these steps:
+## Running it
 
 ```sh
-# Step 1: Clone the repository using the project's Git URL.
-git clone <YOUR_GIT_URL>
-
-# Step 2: Navigate to the project directory.
-cd <YOUR_PROJECT_NAME>
-
-# Step 3: Install the necessary dependencies.
-npm i
-
-# Step 4: Start the development server with auto-reloading and an instant preview.
-npm run dev
+npm install
+npm run dev          # uses your real Supabase project from .env
+npm run dev:local    # uses a local Supabase stack (see below)
 ```
 
-**Edit a file directly in GitHub**
+`.env` needs `VITE_SUPABASE_URL` and `VITE_SUPABASE_PUBLISHABLE_KEY`. Never put secret keys in a `VITE_` variable, because those are bundled into the public site.
 
-- Navigate to the desired file(s).
-- Click the "Edit" button (pencil icon) at the top right of the file view.
-- Make your changes and commit the changes.
+### Local Supabase (Docker)
 
-**Use GitHub Codespaces**
+```sh
+supabase start -x studio,imgproxy,mailpit,logflare,vector,supavisor,realtime,postgres-meta,edge-runtime
+```
 
-- Navigate to the main page of your repository.
-- Click on the "Code" button (green button) near the top right.
-- Select the "Codespaces" tab.
-- Click on "New codespace" to launch a new Codespace environment.
-- Edit files directly within the Codespace and commit and push your changes once you're done.
+Then create `.env.localstack.local` with the local API URL and anon key that `supabase status` prints:
 
-## What technologies are used for this project?
+```
+VITE_SUPABASE_URL=http://127.0.0.1:54321
+VITE_SUPABASE_PUBLISHABLE_KEY=<local anon key>
+```
 
-This project is built with:
+## Deploying database changes
 
-- Vite
-- TypeScript
-- React
-- shadcn-ui
-- Tailwind CSS
+Migrations live in `supabase/migrations`. To apply them to the live project:
 
-## How can I deploy this project?
+```sh
+supabase link --project-ref <project-ref>
+supabase db push
+```
 
-Simply open [Lovable](https://lovable.dev/projects/b7822bc9-e7e0-4772-a6d5-293d299747c7) and click on Share -> Publish.
+## Admins
 
-## Can I connect a custom domain to my Lovable project?
+Nobody can make themselves an admin from the website. After the person signs up, run this in the Supabase SQL editor:
 
-Yes, you can!
+```sql
+insert into public.user_roles (user_id, role)
+select id, 'admin' from auth.users where email = 'their-email@example.com';
+```
 
-To connect a domain, navigate to Project > Settings > Domains and click Connect Domain.
+Every admin-only table is protected by row-level security (`public.is_admin()`), so hiding the `/admin` link is a convenience, not the protection.
 
-Read more here: [Setting up a custom domain](https://docs.lovable.dev/features/custom-domain#custom-domain)
+## GreenBot (AI)
+
+GreenBot runs in the `greenbot` Edge Function so the Gemini key never reaches the browser:
+
+```sh
+supabase secrets set GEMINI_API_KEY=<key>
+supabase functions deploy greenbot
+```
+
+Only signed-in users can call it.

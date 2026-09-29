@@ -1,141 +1,278 @@
-import { Link, useLocation, useNavigate } from "react-router-dom";
+import { useState } from "react";
+import { Link, NavLink, useNavigate } from "react-router-dom";
+import { format } from "date-fns";
+import { ArrowRight, Instagram, LayoutDashboard, LogOut, Mail, Menu, Phone, ShieldCheck, User } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
-import { useEffect, useState } from "react";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuLabel,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
+import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetTrigger } from "@/components/ui/sheet";
 import { supabase } from "@/integrations/supabase/client";
-import { Session } from "@supabase/supabase-js";
-import { Leaf, Map, Trophy, User, LogOut, LayoutDashboard } from "lucide-react";
+import { cn } from "@/lib/utils";
+import { CHAPTER } from "@/data/chapter";
+import { SDGS } from "@/data/sdgs";
+import { applicationsAreOpen, useIsAdmin, useSiteSettings, useChapterContact } from "@/hooks/use-site";
+import { Logo } from "@/components/site/Brand";
+
+const NAV_ITEMS = [
+  { path: "/", label: "Home" },
+  { path: "/about", label: "About" },
+  { path: "/projects", label: "Projects" },
+  { path: "/map", label: "Tree Map" },
+  { path: "/leaderboard", label: "Leaderboard" },
+  { path: "/dashboard", label: "GreenBot" },
+];
+
+const XIcon = ({ className }: { className?: string }) => (
+  <svg viewBox="0 0 24 24" className={className} fill="currentColor" aria-hidden>
+    <path d="M18.244 2.25h3.308l-7.227 8.26 8.502 11.24H16.17l-5.214-6.817L4.99 21.75H1.68l7.73-8.835L1.254 2.25H8.08l4.713 6.231zm-1.161 17.52h1.833L7.084 4.126H5.117z" />
+  </svg>
+);
+
+export const SdgStripe = ({ className }: { className?: string }) => (
+  <div className={cn("flex h-1.5 w-full", className)} aria-hidden>
+    {SDGS.map((s) => (
+      <span key={s.number} className="flex-1" style={{ backgroundColor: s.color }} />
+    ))}
+  </div>
+);
 
 export const Layout = ({ children }: { children: React.ReactNode }) => {
-  const location = useLocation();
   const navigate = useNavigate();
-  const [session, setSession] = useState<Session | null>(null);
-
-  useEffect(() => {
-    const { data: { subscription } } = supabase.auth.onAuthStateChange(
-      (event, session) => {
-        setSession(session);
-        
-        // On sign out, redirect to home
-        if (event === "SIGNED_OUT") {
-          navigate("/", { replace: true });
-        }
-      }
-    );
-
-    supabase.auth.getSession().then(({ data: { session } }) => {
-      setSession(session);
-    });
-
-    return () => subscription.unsubscribe();
-  }, [navigate]);
+  const [mobileOpen, setMobileOpen] = useState(false);
+  const { session, isAdmin } = useIsAdmin();
+  const { data: settings } = useSiteSettings();
+  const contact = useChapterContact();
+  const appsOpen = applicationsAreOpen(settings);
 
   const handleSignOut = async () => {
     try {
-      // Clear local state first
-      setSession(null);
-      
-      // Attempt server-side logout (may fail if session already invalid)
       await supabase.auth.signOut();
     } catch {
-      // Session already cleared - that's fine
+      // Session already gone; nothing else to clean up.
     }
-    
-    // Navigate to home page after logout
     navigate("/", { replace: true });
   };
 
-  const navItems = [
-    { path: "/", label: "Home", icon: Leaf },
-    { path: "/map", label: "Map", icon: Map },
-    { path: "/leaderboard", label: "Leaderboard", icon: Trophy },
-    { path: "/dashboard", label: "Dashboard", icon: LayoutDashboard },
-    { path: "/profile", label: "Profile", icon: User },
-  ];
+  const navLinkClass = ({ isActive }: { isActive: boolean }) =>
+    cn(
+      "relative rounded-md px-3 py-2 text-sm font-semibold transition-colors",
+      isActive ? "text-primary after:absolute after:inset-x-3 after:-bottom-[1px] after:h-0.5 after:rounded-full after:bg-secondary" : "text-foreground/70 hover:text-primary"
+    );
 
   return (
-    <div className="min-h-screen flex flex-col gradient-subtle">
-      <header className="border-b border-border bg-card/80 backdrop-blur-sm sticky top-0 z-50">
-        <div className="container mx-auto px-4 py-4">
-          <div className="flex items-center justify-between">
-            <Link to="/" className="flex items-center gap-2">
-              <div className="w-10 h-10 gradient-hero rounded-lg flex items-center justify-center">
-                <Leaf className="w-6 h-6 text-primary-foreground" />
-              </div>
-              <div>
-                <h1 className="text-xl font-bold text-foreground">Greentrack</h1>
-                <p className="text-xs text-muted-foreground">Plant & Track</p>
-              </div>
-            </Link>
-
-            <nav className="hidden md:flex items-center gap-6">
-              {navItems.map((item) => {
-                const Icon = item.icon;
-                const isActive = location.pathname === item.path;
-                return (
-                  <Link
-                    key={item.path}
-                    to={item.path}
-                    className={`flex items-center gap-2 text-sm font-medium transition-colors hover:text-primary ${
-                      isActive ? "text-primary" : "text-muted-foreground"
-                    }`}
-                  >
-                    <Icon className="w-4 h-4" />
-                    {item.label}
-                  </Link>
-                );
-              })}
-            </nav>
-
-            <div className="flex items-center gap-4">
-              {session ? (
-                <>
-                  <Link to="/profile">
-                    <Avatar className="w-9 h-9 cursor-pointer hover:ring-2 ring-primary transition-all">
-                      <AvatarFallback className="bg-primary text-primary-foreground">
-                        {session.user.email?.[0].toUpperCase()}
-                      </AvatarFallback>
-                    </Avatar>
-                  </Link>
-                  <Button variant="ghost" size="sm" onClick={handleSignOut}>
-                    <LogOut className="w-4 h-4" />
-                  </Button>
-                </>
-              ) : (
-                <Link to="/auth">
-                  <Button variant="default" size="sm">Sign In</Button>
-                </Link>
-              )}
-            </div>
+    <div className="flex min-h-screen flex-col overflow-x-clip bg-background">
+      {appsOpen && settings && (
+        <Link
+          to="/apply"
+          className="group block bg-brand-gold text-primary transition-colors hover:bg-brand-gold/90"
+        >
+          <div className="container flex items-center justify-center gap-2 py-2 text-center text-sm font-semibold">
+            <span className="font-display font-extrabold uppercase tracking-wide">{settings.applications_title}</span>
+            <span className="hidden sm:inline">applications are open</span>
+            {settings.applications_deadline && (
+              <span className="hidden md:inline">
+                · deadline {format(new Date(settings.applications_deadline), "d MMM yyyy")}
+              </span>
+            )}
+            <ArrowRight className="h-4 w-4 transition-transform group-hover:translate-x-1" />
           </div>
+        </Link>
+      )}
 
-          {/* Mobile Navigation */}
-          <nav className="md:hidden flex items-center justify-around mt-4 gap-2">
-            {navItems.map((item) => {
-              const Icon = item.icon;
-              const isActive = location.pathname === item.path;
-              return (
-                <Link
-                  key={item.path}
-                  to={item.path}
-                  className={`flex flex-col items-center gap-1 text-xs font-medium transition-colors ${
-                    isActive ? "text-primary" : "text-muted-foreground"
-                  }`}
-                >
-                  <Icon className="w-5 h-5" />
-                  {item.label}
-                </Link>
-              );
-            })}
+      <header className="sticky top-0 z-50 border-b border-border/70 bg-background/85 backdrop-blur-md">
+        <div className="container flex h-[72px] items-center justify-between gap-4">
+          <Logo />
+
+          <nav className="hidden items-center gap-1 lg:flex" aria-label="Main">
+            {NAV_ITEMS.map((item) => (
+              <NavLink key={item.path} to={item.path} end={item.path === "/"} className={navLinkClass}>
+                {item.label}
+              </NavLink>
+            ))}
           </nav>
+
+          <div className="flex items-center gap-2">
+            {appsOpen && (
+              <Button asChild size="sm" className="hidden bg-secondary font-bold hover:bg-brand-green-dark sm:inline-flex">
+                <Link to="/apply">Apply to lead</Link>
+              </Button>
+            )}
+
+            {session ? (
+              <DropdownMenu>
+                <DropdownMenuTrigger className="rounded-full outline-none ring-offset-2 focus-visible:ring-2 focus-visible:ring-ring">
+                  <Avatar className="h-9 w-9 ring-2 ring-secondary/40 transition hover:ring-secondary">
+                    <AvatarFallback className="bg-primary font-bold text-primary-foreground">
+                      {session.user.email?.[0]?.toUpperCase() ?? "U"}
+                    </AvatarFallback>
+                  </Avatar>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent align="end" className="w-56">
+                  <DropdownMenuLabel className="truncate font-normal text-muted-foreground">
+                    {session.user.email}
+                  </DropdownMenuLabel>
+                  <DropdownMenuSeparator />
+                  <DropdownMenuItem onClick={() => navigate("/profile")}>
+                    <User className="mr-2 h-4 w-4" /> My trees & profile
+                  </DropdownMenuItem>
+                  <DropdownMenuItem onClick={() => navigate("/dashboard")}>
+                    <LayoutDashboard className="mr-2 h-4 w-4" /> GreenBot dashboard
+                  </DropdownMenuItem>
+                  {isAdmin && (
+                    <DropdownMenuItem onClick={() => navigate("/admin")}>
+                      <ShieldCheck className="mr-2 h-4 w-4" /> Admin
+                    </DropdownMenuItem>
+                  )}
+                  <DropdownMenuSeparator />
+                  <DropdownMenuItem onClick={handleSignOut}>
+                    <LogOut className="mr-2 h-4 w-4" /> Sign out
+                  </DropdownMenuItem>
+                </DropdownMenuContent>
+              </DropdownMenu>
+            ) : (
+              <Button asChild size="sm" variant="outline" className="border-primary/30 font-semibold text-primary">
+                <Link to="/auth">Sign in</Link>
+              </Button>
+            )}
+
+            <Sheet open={mobileOpen} onOpenChange={setMobileOpen}>
+              <SheetTrigger asChild>
+                <Button variant="ghost" size="icon" className="lg:hidden" aria-label="Open menu">
+                  <Menu className="h-5 w-5" />
+                </Button>
+              </SheetTrigger>
+              <SheetContent side="right" className="w-[300px] bg-background">
+                <SheetHeader>
+                  <SheetTitle className="text-left">
+                    <Logo />
+                  </SheetTitle>
+                </SheetHeader>
+                <nav className="mt-8 flex flex-col gap-1" aria-label="Mobile">
+                  {NAV_ITEMS.map((item) => (
+                    <NavLink
+                      key={item.path}
+                      to={item.path}
+                      end={item.path === "/"}
+                      onClick={() => setMobileOpen(false)}
+                      className={({ isActive }) =>
+                        cn(
+                          "rounded-lg px-4 py-3 font-display text-base font-bold",
+                          isActive ? "bg-primary text-primary-foreground" : "text-primary hover:bg-muted"
+                        )
+                      }
+                    >
+                      {item.label}
+                    </NavLink>
+                  ))}
+                  {appsOpen && (
+                    <Link
+                      to="/apply"
+                      onClick={() => setMobileOpen(false)}
+                      className="mt-3 rounded-lg bg-secondary px-4 py-3 text-center font-display font-bold text-white"
+                    >
+                      Apply to lead
+                    </Link>
+                  )}
+                </nav>
+              </SheetContent>
+            </Sheet>
+          </div>
         </div>
       </header>
 
       <main className="flex-1">{children}</main>
 
-      <footer className="border-t border-border bg-card py-6 mt-auto">
-        <div className="container mx-auto px-4 text-center text-sm text-muted-foreground">
-          <p>© 2026 Greentrack. Making our planet greener, one tree at a time.</p>
+      <footer className="mt-auto bg-brand-navy-deep text-white">
+        <SdgStripe />
+        <div className="container grid gap-10 py-14 md:grid-cols-2 lg:grid-cols-[1.4fr_1fr_1fr_1.3fr]">
+          <div>
+            <Logo light />
+            <p className="mt-5 max-w-xs text-sm text-white/70">
+              {CHAPTER.name}, {CHAPTER.chapter}. A student-run chapter affiliated to the World
+              Federation of United Nations Associations.
+            </p>
+            <div className="mt-6 flex items-center gap-3">
+              <img src="/images/brand/kyu-logo.png" alt="Kyambogo University" className="h-12 w-auto rounded bg-white p-1" />
+              <p className="text-xs text-white/60">Registered student association at Kyambogo University</p>
+            </div>
+          </div>
+
+          <div>
+            <h3 className="font-display text-sm font-bold uppercase tracking-widest text-brand-gold">Explore</h3>
+            <ul className="mt-4 space-y-2 text-sm text-white/80">
+              <li><Link className="hover:text-white" to="/about">About the chapter</Link></li>
+              <li><Link className="hover:text-white" to="/projects">Projects & impact</Link></li>
+              <li><Link className="hover:text-white" to="/map">UNAU TreeMap</Link></li>
+              <li><Link className="hover:text-white" to="/leaderboard">Leaderboard</Link></li>
+              <li><Link className="hover:text-white" to="/dashboard">GreenBot</Link></li>
+            </ul>
+          </div>
+
+          <div>
+            <h3 className="font-display text-sm font-bold uppercase tracking-widest text-brand-gold">Get involved</h3>
+            <ul className="mt-4 space-y-2 text-sm text-white/80">
+              <li><Link className="hover:text-white" to="/about#join">Become a member</Link></li>
+              <li><Link className="hover:text-white" to="/auth">Map your trees</Link></li>
+              <li>
+                <Link className="hover:text-white" to="/apply">
+                  Executive applications{" "}
+                  <span className={cn("ml-1 rounded px-1.5 py-0.5 text-[10px] font-bold", appsOpen ? "bg-secondary text-white" : "bg-white/10 text-white/60")}>
+                    {appsOpen ? "OPEN" : "CLOSED"}
+                  </span>
+                </Link>
+              </li>
+            </ul>
+          </div>
+
+          <div>
+            <h3 className="font-display text-sm font-bold uppercase tracking-widest text-brand-gold">Contact</h3>
+            <ul className="mt-4 space-y-3 text-sm text-white/80">
+              <li>
+                <a className="inline-flex items-center gap-2 hover:text-white" href={`mailto:${contact.email}`}>
+                  <Mail className="h-4 w-4 text-secondary" /> {contact.email}
+                </a>
+              </li>
+              <li>
+                <a className="inline-flex items-center gap-2 hover:text-white" href={contact.phoneHref}>
+                  <Phone className="h-4 w-4 text-secondary" /> {contact.phone}
+                </a>
+              </li>
+              <li className="text-white/60">{CHAPTER.address}</li>
+            </ul>
+            <div className="mt-5 flex gap-2">
+              <a
+                href={contact.instagram.url}
+                target="_blank"
+                rel="noreferrer"
+                aria-label={`Instagram ${contact.instagram.handle}`}
+                className="flex h-10 w-10 items-center justify-center rounded-full bg-white/10 transition hover:bg-secondary"
+              >
+                <Instagram className="h-4 w-4" />
+              </a>
+              <a
+                href={contact.x.url}
+                target="_blank"
+                rel="noreferrer"
+                aria-label={`X ${contact.x.handle}`}
+                className="flex h-10 w-10 items-center justify-center rounded-full bg-white/10 transition hover:bg-secondary"
+              >
+                <XIcon className="h-4 w-4" />
+              </a>
+            </div>
+          </div>
+        </div>
+        <div className="border-t border-white/10">
+          <div className="container flex flex-col items-center justify-between gap-2 py-5 text-xs text-white/50 sm:flex-row">
+            <p>© {new Date().getFullYear()} UNAU Kyambogo University Chapter. All rights reserved.</p>
+            <p className="font-display font-bold uppercase tracking-[0.2em] text-white/60">{CHAPTER.tagline}</p>
+          </div>
         </div>
       </footer>
     </div>

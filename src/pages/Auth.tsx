@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef } from "react";
-import { useNavigate, useSearchParams } from "react-router-dom";
+import { Link, useNavigate, useSearchParams } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -161,11 +161,11 @@ const Auth = () => {
     <div className="min-h-screen flex items-center justify-center gradient-subtle p-4">
       <Card className="w-full max-w-md shadow-card">
         <CardHeader className="text-center space-y-2">
-          <div className="w-16 h-16 gradient-hero rounded-2xl flex items-center justify-center mx-auto mb-2">
-            <Leaf className="w-10 h-10 text-primary-foreground" />
-          </div>
+          <Link to="/" aria-label="Back to the UNAU Kyambogo home page">
+            <img src="/images/brand/unau-logo-sm.png" alt="UNAU" className="mx-auto mb-2 h-16 w-auto" />
+          </Link>
           <CardTitle className="text-2xl">
-            {isSignUp ? "Join Greentrack" : "Welcome Back"}
+            {isSignUp ? "Join UNAU TreeMap" : "Welcome Back"}
           </CardTitle>
           <CardDescription>
             {isSignUp

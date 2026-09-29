@@ -2,91 +2,58 @@
 @tailwind components;
 @tailwind utilities;
 
-/* Definition of the design system. All colors, gradients, fonts, etc should be defined here. 
-All colors MUST be HSL.
-*/
+/* UNAU Kyambogo design system, taken from the chapter's posters:
+   UN navy, SDG green, gold highlights on a warm cream page.
+   All colours are HSL. */
 
 @layer base {
   :root {
-    /* UN Blue & Green theme */
-    --background: 0 0% 100%;
-    --foreground: 200 15% 15%;
+    --background: 42 45% 97%;
+    --foreground: 224 45% 14%;
 
     --card: 0 0% 100%;
-    --card-foreground: 200 15% 15%;
+    --card-foreground: 224 45% 14%;
 
     --popover: 0 0% 100%;
-    --popover-foreground: 200 15% 15%;
+    --popover-foreground: 224 45% 14%;
 
-    /* UN Blue primary */
-    --primary: 200 100% 43%;
+    /* UN navy */
+    --primary: 221 80% 23%;
     --primary-foreground: 0 0% 100%;
-    --primary-light: 200 100% 65%;
-    
-    /* Forest Green secondary */
-    --secondary: 140 70% 35%;
+    --primary-light: 219 70% 42%;
+
+    /* SDG green */
+    --secondary: 134 57% 42%;
     --secondary-foreground: 0 0% 100%;
 
-    /* Leaf Green accent */
-    --accent: 120 60% 50%;
-    --accent-foreground: 0 0% 100%;
+    /* Gold */
+    --accent: 45 100% 47%;
+    --accent-foreground: 224 45% 14%;
 
-    --muted: 200 20% 95%;
-    --muted-foreground: 200 10% 45%;
+    --muted: 40 30% 92%;
+    --muted-foreground: 222 14% 40%;
 
-    --destructive: 0 84.2% 60.2%;
+    --destructive: 0 72% 51%;
     --destructive-foreground: 0 0% 100%;
 
-    --border: 200 25% 85%;
-    --input: 200 25% 90%;
-    --ring: 200 100% 43%;
+    --border: 40 20% 85%;
+    --input: 40 20% 82%;
+    --ring: 221 80% 35%;
 
-    --radius: 0.75rem;
+    --radius: 0.875rem;
 
-    /* Gradients */
-    --gradient-hero: linear-gradient(135deg, hsl(200 100% 43%) 0%, hsl(140 70% 35%) 100%);
-    --gradient-subtle: linear-gradient(180deg, hsl(0 0% 100%) 0%, hsl(200 20% 98%) 100%);
-    
-    /* Shadows */
-    --shadow-glow: 0 10px 40px -10px hsl(200 100% 43% / 0.3);
-    --shadow-card: 0 4px 20px -4px hsl(200 20% 20% / 0.1);
-  }
+    --brand-navy: 221 80% 23%;
+    --brand-navy-deep: 223 78% 15%;
+    --brand-green: 134 57% 42%;
+    --brand-green-dark: 137 60% 30%;
+    --brand-gold: 45 100% 47%;
+    --brand-cream: 42 50% 96%;
 
-  .dark {
-    --background: 200 25% 8%;
-    --foreground: 0 0% 95%;
+    --gradient-hero: linear-gradient(135deg, hsl(221 80% 23%) 0%, hsl(137 60% 30%) 100%);
+    --gradient-subtle: linear-gradient(180deg, hsl(42 45% 97%) 0%, hsl(40 35% 94%) 100%);
 
-    --card: 200 20% 12%;
-    --card-foreground: 0 0% 95%;
-
-    --popover: 200 20% 12%;
-    --popover-foreground: 0 0% 95%;
-
-    --primary: 200 100% 50%;
-    --primary-foreground: 0 0% 100%;
-    --primary-light: 200 100% 65%;
-
-    --secondary: 140 65% 40%;
-    --secondary-foreground: 0 0% 100%;
-
-    --accent: 120 55% 55%;
-    --accent-foreground: 0 0% 100%;
-
-    --muted: 200 15% 20%;
-    --muted-foreground: 200 10% 60%;
-
-    --destructive: 0 62.8% 50%;
-    --destructive-foreground: 0 0% 100%;
-
-    --border: 200 15% 25%;
-    --input: 200 15% 25%;
-    --ring: 200 100% 50%;
-
-    --gradient-hero: linear-gradient(135deg, hsl(200 100% 50%) 0%, hsl(140 65% 40%) 100%);
-    --gradient-subtle: linear-gradient(180deg, hsl(200 25% 8%) 0%, hsl(200 20% 12%) 100%);
-    
-    --shadow-glow: 0 10px 40px -10px hsl(200 100% 50% / 0.4);
-    --shadow-card: 0 4px 20px -4px hsl(0 0% 0% / 0.3);
+    --shadow-glow: 0 18px 50px -18px hsl(221 80% 23% / 0.45);
+    --shadow-card: 0 1px 2px hsl(224 45% 14% / 0.04), 0 8px 24px -12px hsl(224 45% 14% / 0.12);
   }
 }
 
@@ -95,13 +62,32 @@ All colors MUST be HSL.
     @apply border-border;
   }
 
+  html {
+    scroll-behavior: smooth;
+  }
+
   body {
-    @apply bg-background text-foreground;
+    @apply bg-background text-foreground font-sans antialiased;
     font-feature-settings: "rlig" 1, "calt" 1;
   }
-  
+
   h1, h2, h3, h4, h5, h6 {
-    @apply font-bold;
+    @apply font-display font-bold tracking-tight;
+  }
+}
+
+@layer components {
+  /* Small caps label above section titles, as on the posters */
+  .eyebrow {
+    @apply font-display text-xs font-bold uppercase tracking-[0.2em] text-secondary;
+  }
+
+  .section-title {
+    @apply font-display text-3xl font-extrabold leading-[1.1] text-primary md:text-5xl;
+  }
+
+  .prose-unau {
+    @apply prose prose-slate max-w-none prose-headings:font-display prose-headings:text-primary prose-a:text-secondary prose-strong:text-foreground prose-li:marker:text-secondary;
   }
 }
 
@@ -109,17 +95,30 @@ All colors MUST be HSL.
   .gradient-hero {
     background: var(--gradient-hero);
   }
-  
+
   .gradient-subtle {
     background: var(--gradient-subtle);
   }
-  
+
   .shadow-glow {
     box-shadow: var(--shadow-glow);
   }
-  
+
   .shadow-card {
     box-shadow: var(--shadow-card);
   }
-  
+
+  .text-balance {
+    text-wrap: balance;
+  }
+}
+
+/* Leaflet sits under the sticky header and dialogs */
+.leaflet-container {
+  z-index: 0;
+  font-family: inherit;
+}
+
+.leaflet-popup-content-wrapper {
+  border-radius: 12px;
 }

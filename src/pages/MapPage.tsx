@@ -1,8 +1,7 @@
-import { useEffect, useState, useRef } from "react";
+import { useCallback, useEffect, useMemo, useState, useRef } from "react";
 import { useNavigate, useSearchParams } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { Session } from "@supabase/supabase-js";
-type Json = string | number | boolean | null | { [key: string]: Json | undefined } | Json[];
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -14,11 +13,26 @@ import { toast } from "sonner";
 import { Layout } from "@/components/Layout";
 import L from "leaflet";
 import "leaflet/dist/leaflet.css";
-import { Plus, Leaf } from "lucide-react";
+import { Plus, Leaf, Loader2, MapPin } from "lucide-react";
 import { TREE_SPECIES } from "@/data/treeSpecies";
+import { requestTreeCareAdvice } from "@/services/geminiService";
+import { downscaleImage } from "@/lib/media";
+import { KYAMBOGO_CENTER } from "@/components/site/TreeMapPreview";
+import {
+  MIN_PLANTED_DATE,
+  isInUganda,
+  isValidLatLng,
+  parseCoordinate,
+  parseCoordinatePair,
+  plantedDateError,
+  todayISO,
+} from "@/lib/coords";
 
-import { getLocalWeatherContext } from "@/services/weatherService";
-import { generateTreeSurvivalAdvice } from "@/services/geminiService";
+// Tree data is user-supplied and Leaflet popups are raw HTML, so escape everything.
+const escapeHtml = (value: unknown) =>
+  String(value ?? "").replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" })[c]!);
+
+const safeImageUrl = (url: string) => (/^https:\/\//i.test(url) ? url : null);
 
 // Fix Leaflet default marker icon issue in Vite/mobile
 delete (L.Icon.Default.prototype as any)._getIconUrl;
@@ -48,15 +62,20 @@ const MapPage = () => {
   const [session, setSession] = useState<Session | null>(null);
   const [trees, setTrees] = useState<Tree[]>([]);
   const [isDialogOpen, setIsDialogOpen] = useState(false);
-  const [selectedTreeId, setSelectedTreeId] = useState<string | null>(null);
+  const [saving, setSaving] = useState(false);
+  const [hasPin, setHasPin] = useState(false);
   const [selectedImage, setSelectedImage] = useState<string | null>(null);
-  const [newTree, setNewTree] = useState({
+  const emptyTree = () => ({
     species: "",
     notes: "",
     tree_count: 1,
-    latitude: 0.3476,
-    longitude: 32.6056,
+    latitude: NaN,
+    longitude: NaN,
+    planted_date: todayISO(),
   });
+  const [newTree, setNewTree] = useState(emptyTree);
+  // What the user typed in the coordinate boxes (kept separately so typing isn't reformatted).
+  const [coordText, setCoordText] = useState({ lat: "", lng: "" });
   const [uploadedImages, setUploadedImages] = useState<File[]>([]);
   const [searchParams] = useSearchParams();
   const navigate = useNavigate();
@@ -96,11 +115,13 @@ const MapPage = () => {
     if (!mapContainerRef.current || mapInstanceRef.current) return;
 
     // If we have focus coordinates from URL, use those as initial view
-    const initialLat = focusLat ? parseFloat(focusLat) : 0;
-    const initialLng = focusLng ? parseFloat(focusLng) : 0;
-    const initialZoom = focusLat && focusLng ? 18 : 2;
+    const initialLat = focusLat ? parseFloat(focusLat) : KYAMBOGO_CENTER[0];
+    const initialLng = focusLng ? parseFloat(focusLng) : KYAMBOGO_CENTER[1];
+    const initialZoom = focusLat && focusLng ? 18 : 16;
 
-    const map = L.map(mapContainerRef.current, { attributionControl: false }).setView([initialLat, initialLng], initialZoom);
+    const map = L.map(mapContainerRef.current).setView([initialLat, initialLng], initialZoom);
+    // Keep the OpenStreetMap credit the tile licence requires, without the Leaflet logo.
+    map.attributionControl.setPrefix(false);
 
     L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png", {
       attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors',
@@ -132,7 +153,7 @@ const MapPage = () => {
       });
 
       map.on('locationerror', () => {
-        toast.error("Location access denied or unavailable.");
+        toast.info("Couldn't get your location, so the map is showing Kyambogo. Tap where you planted.");
       });
     }
 
@@ -145,55 +166,75 @@ const MapPage = () => {
     };
   }, [focusLat, focusLng]);
 
-  // Handle map clicks separately, with session in dependency array
+  /** Drops (or moves) the draggable "new tree" pin and syncs the form. */
+  const placePin = useCallback(
+    (latlng: L.LatLngExpression, { pan = false, syncText = true }: { pan?: boolean; syncText?: boolean } = {}) => {
+      const map = mapInstanceRef.current;
+      if (!map) return;
+      const position = L.latLng(latlng);
+
+      const sync = (p: L.LatLng, updateText: boolean) => {
+        setNewTree((prev) => ({ ...prev, latitude: p.lat, longitude: p.lng }));
+        if (updateText) setCoordText({ lat: p.lat.toFixed(6), lng: p.lng.toFixed(6) });
+      };
+
+      if (newTreeMarkerRef.current) {
+        newTreeMarkerRef.current.setLatLng(position);
+      } else {
+        const marker = L.marker(position, { draggable: true })
+          .addTo(map)
+          .bindPopup("🌱 Tree location<br><small>Drag to adjust or click Plant Tree</small>");
+        marker.on('dragend', () => sync(marker.getLatLng(), true));
+        newTreeMarkerRef.current = marker;
+      }
+      newTreeMarkerRef.current.openPopup();
+      if (pan) map.setView(position, Math.max(map.getZoom(), 17));
+
+      setHasPin(true);
+      sync(position, syncText);
+    },
+    []
+  );
+
+  // Handle map clicks separately (session is read from a ref to avoid a stale closure)
   useEffect(() => {
     const map = mapInstanceRef.current;
     if (!map) return;
 
     const handleMapClick = (e: L.LeafletMouseEvent) => {
-      // Use ref to get current session value (avoids stale closure)
       if (!sessionRef.current) {
         toast.info("Please sign in to plant trees");
         return;
       }
-      
-      // Remove old marker if exists
-      if (newTreeMarkerRef.current) {
-        map.removeLayer(newTreeMarkerRef.current);
-      }
-
-      // Create new draggable marker
-      const marker = L.marker(e.latlng, { draggable: true })
-        .addTo(map)
-        .bindPopup("🌱 Tree location<br><small>Drag to adjust or click Plant Tree</small>")
-        .openPopup();
-
-      // Update coordinates when marker is dragged
-      marker.on('dragend', () => {
-        const position = marker.getLatLng();
-        setNewTree((prev) => ({
-          ...prev,
-          latitude: position.lat,
-          longitude: position.lng,
-        }));
-      });
-
-      newTreeMarkerRef.current = marker;
-
-      // Update state with clicked location
-      setNewTree((prev) => ({
-        ...prev,
-        latitude: e.latlng.lat,
-        longitude: e.latlng.lng,
-      }));
+      placePin(e.latlng);
     };
 
     map.on('click', handleMapClick);
-
     return () => {
       map.off('click', handleMapClick);
     };
-  }, []); // No session dependency needed - using sessionRef instead
+  }, [placePin]);
+
+  /** Typed or pasted coordinates. A pasted "lat, lng" pair fills both boxes. */
+  const handleCoordChange = (field: "lat" | "lng", value: string) => {
+    const pair = parseCoordinatePair(value);
+    if (pair) {
+      placePin([pair.lat, pair.lng], { pan: true });
+      return;
+    }
+
+    const next = { ...coordText, [field]: value };
+    setCoordText(next);
+    const lat = parseCoordinate(next.lat);
+    const lng = parseCoordinate(next.lng);
+    if (lat !== null && lng !== null && isValidLatLng(lat, lng)) {
+      placePin([lat, lng], { pan: true, syncText: false });
+    } else {
+      setNewTree((prev) => ({ ...prev, latitude: NaN, longitude: NaN }));
+    }
+  };
+
+  const coordsValid = isValidLatLng(newTree.latitude, newTree.longitude);
 
   const fetchTrees = async () => {
     // Check if user is authenticated
@@ -235,7 +276,7 @@ const MapPage = () => {
 
   // Render tree markers on the map
   useEffect(() => {
-    if (!mapInstanceRef.current || trees.length === 0) return;
+    if (!mapInstanceRef.current) return;
 
     const map = mapInstanceRef.current;
 
@@ -245,10 +286,12 @@ const MapPage = () => {
 
     // Add new markers for each tree
     trees.forEach((tree) => {
-      const images = [tree.image_1, tree.image_2, tree.image_3].filter(Boolean);
+      const images = [tree.image_1, tree.image_2, tree.image_3]
+        .map((img) => (img ? safeImageUrl(img) : null))
+        .filter((img): img is string => !!img);
       const imagesHtml = images.length > 0 
         ? `<div style="display: flex; gap: 4px; margin-top: 8px; overflow-x: auto;">
-            ${images.map((img, idx) => `<img data-image="${img}" class="tree-image-thumbnail" src="${img}" style="width: 100px; height: 100px; object-fit: cover; border-radius: 4px; cursor: pointer;" />`).join('')}
+            ${images.map((img) => `<img data-image="${escapeHtml(img)}" class="tree-image-thumbnail" src="${escapeHtml(img)}" style="width: 100px; height: 100px; object-fit: cover; border-radius: 4px; cursor: pointer;" />`).join('')}
           </div>`
         : '';
       
@@ -256,11 +299,11 @@ const MapPage = () => {
         .addTo(map)
         .bindPopup(
           `<div style="min-width: 200px;">
-            <h3 style="font-weight: bold; margin-bottom: 4px;">${tree.species || 'Tree'}</h3>
-            <p style="margin: 2px 0;">Trees planted: ${tree.tree_count}</p>
-            <p style="margin: 2px 0;">Date: ${new Date(tree.planted_date).toLocaleDateString()}</p>
-            <p style="margin: 2px 0;">By: ${tree.profiles?.full_name || 'Unknown'}</p>
-            ${tree.notes ? `<p style="margin: 2px 0;">Notes: ${tree.notes}</p>` : ''}
+            <h3 style="font-weight: bold; margin-bottom: 4px;">${escapeHtml(tree.species || 'Tree')}</h3>
+            <p style="margin: 2px 0;">Trees planted: ${escapeHtml(tree.tree_count)}</p>
+            <p style="margin: 2px 0;">Date: ${escapeHtml(new Date(tree.planted_date).toLocaleDateString())}</p>
+            <p style="margin: 2px 0;">By: ${escapeHtml(tree.profiles?.full_name || 'Unknown')}</p>
+            ${tree.notes ? `<p style="margin: 2px 0;">Notes: ${escapeHtml(tree.notes)}</p>` : ''}
             ${imagesHtml}
           </div>`,
           { maxWidth: 320 }
@@ -296,9 +339,14 @@ const MapPage = () => {
     });
   }, [trees, treeId, focusLat, focusLng]);
 
+  // Object URLs for previews, released when the selection changes.
+  const previewUrls = useMemo(() => uploadedImages.map((f) => URL.createObjectURL(f)), [uploadedImages]);
+  useEffect(() => () => previewUrls.forEach((u) => URL.revokeObjectURL(u)), [previewUrls]);
+
   const handleImageUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
     const files = Array.from(e.target.files || []);
     const validFiles = files.filter(file => file.type.startsWith('image/'));
+    e.target.value = "";
     
     if (uploadedImages.length + validFiles.length > 3) {
       toast.error("You can only upload up to 3 images");
@@ -312,21 +360,37 @@ const MapPage = () => {
     setUploadedImages(uploadedImages.filter((_, i) => i !== index));
   };
 
-  const handleAddTree = async () => {
-    if (!session?.user) return;
+  const openPlantDialog = () => setIsDialogOpen(true);
 
+  const handleAddTree = async () => {
+    if (!session?.user || saving) return;
+    if (!coordsValid) {
+      toast.error("Add the tree's location: tap the map, or enter its latitude and longitude.");
+      return;
+    }
+    const dateError = plantedDateError(newTree.planted_date);
+    if (dateError) {
+      toast.error(dateError);
+      return;
+    }
+    if (!Number.isFinite(newTree.tree_count) || newTree.tree_count < 1 || newTree.tree_count > 10000) {
+      toast.error("Number of trees must be between 1 and 10,000.");
+      return;
+    }
+
+    setSaving(true);
     try {
       // Upload images first
       const imageUrls: (string | null)[] = [null, null, null];
       
       for (let i = 0; i < uploadedImages.length; i++) {
-        const file = uploadedImages[i];
-        const fileExt = file.name.split('.').pop();
+        const file = await downscaleImage(uploadedImages[i]);
+        const fileExt = file.type === "image/jpeg" ? "jpg" : uploadedImages[i].name.split('.').pop();
         const fileName = `${session.user.id}/${Date.now()}-${i}.${fileExt}`;
         
-        const { error: uploadError, data } = await supabase.storage
+        const { error: uploadError } = await supabase.storage
           .from('tree-images')
-          .upload(fileName, file);
+          .upload(fileName, file, { contentType: file.type || uploadedImages[i].type });
 
         if (uploadError) throw uploadError;
         
@@ -345,6 +409,7 @@ const MapPage = () => {
         species: newTree.species || null,
         notes: newTree.notes || null,
         tree_count: newTree.tree_count,
+        planted_date: newTree.planted_date,
         image_1: imageUrls[0],
         image_2: imageUrls[1],
         image_3: imageUrls[2],
@@ -354,110 +419,69 @@ const MapPage = () => {
 
       toast.success("Tree planted successfully! 🌱");
       
-      // Proactively fetch weather and generate tree care advice
-      toast.promise(
-        async () => {
-          console.log("[Agent Workflow] Step 1: Initiating post-planting tree advice workflow...");
-          
-          console.log("[Agent Workflow] Step 2: Fetching local weather data from Open-Meteo for coordinates:", newTree.latitude, newTree.longitude);
-          const weather = await getLocalWeatherContext(newTree.latitude, newTree.longitude);
-          console.log("[Agent Workflow] Step 3: Weather data retrieved:", weather);
-          
-          console.log("[Agent Workflow] Step 4: Connecting to Gemini AI to reason over tree species and current weather...");
-          const advice = await generateTreeSurvivalAdvice(
-            newTree.latitude,
-            newTree.longitude,
-            newTree.species || "Unknown Species",
-            weather
-          );
-          console.log("[Agent Workflow] Step 5: Structured advice generated by Gemini API:", advice);
+      // GreenBot writes survival advice for the new tree (weather + Gemini run server-side).
+      if (treeData) {
+        const species = newTree.species;
+        toast.promise(requestTreeCareAdvice(treeData.id), {
+          loading: "GreenBot is preparing care advice for your tree…",
+          success: (advice) => `Advice ready for your ${advice.recommendedSpecies || species || "tree"}! Check the GreenBot dashboard.`,
+          error: "Couldn't generate care advice right now.",
+        });
+      }
 
-          if (advice && treeData) {
-            console.log("[Agent Workflow] Step 6: Saving the advice to Supabase 'tree_care_advice' table...");
-            const advicePayload = JSON.parse(JSON.stringify(advice)) as Json;
-            let { error: insertError } = await supabase.from("tree_care_advice").insert({
-              tree_id: treeData.id,
-              user_id: session.user.id,
-              advice: advicePayload,
-            });
-
-            if (insertError) {
-              console.warn("[Agent Workflow] Primary insert failed, retrying with advice_json column:", insertError);
-              const retryResult = await (supabase as any).from("tree_care_advice").insert({
-                tree_id: treeData.id,
-                user_id: session.user.id,
-                advice_json: advicePayload,
-              });
-              insertError = retryResult.error;
-            }
-            
-            if (insertError) {
-              console.error("[Agent Workflow] Error saving advice to database:", insertError);
-              throw insertError;
-            }
-            
-            console.log("[Agent Workflow] Step 7: Advice saved successfully! Real-time notification will be triggered in Dashboard.");
-            return advice;
-          }
-          throw new Error("Could not generate advice");
-        },
-        {
-          loading: 'Generating personalized survival advice based on local weather...',
-          success: (advice) => `Advice ready for your ${advice.recommendedSpecies || newTree.species}! Check your dashboard.`,
-          error: 'Could not generate care advice at this time.',
-        }
-      );
-      
       // Remove the placement marker
       if (newTreeMarkerRef.current && mapInstanceRef.current) {
         mapInstanceRef.current.removeLayer(newTreeMarkerRef.current);
         newTreeMarkerRef.current = null;
       }
+      setHasPin(false);
       
       setIsDialogOpen(false);
-      setNewTree({
-        latitude: 0.3476,
-        longitude: 32.6056,
-        species: "",
-        notes: "",
-        tree_count: 1,
-      });
+      setNewTree(emptyTree());
+      setCoordText({ lat: "", lng: "" });
       setUploadedImages([]);
       fetchTrees();
     } catch (error) {
       console.error(error);
       toast.error("Failed to add tree");
+    } finally {
+      setSaving(false);
     }
   };
 
   return (
     <Layout>
       <div className="container mx-auto px-4 py-8">
-        <div className="mb-6 flex items-center justify-between">
+        <div className="mb-6 flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
           <div>
-            <h1 className="text-3xl font-bold mb-2">Interactive Tree Map</h1>
-            <p className="text-muted-foreground">
-              {session ? "Click anywhere on the map to place a tree marker" : "View trees planted by our community"}
+            <p className="eyebrow">UNAU TreeMap</p>
+            <h1 className="mt-2 font-display text-3xl font-black text-primary md:text-4xl">Every tree, on the map</h1>
+            <p className="mt-1 text-muted-foreground">
+              {session
+                ? hasPin
+                  ? "Pin placed. Drag it to adjust, then tap Plant Tree."
+                  : "Tap the map where you planted, or tap Plant Tree to type the coordinates."
+                : "Explore the trees our community has planted. Sign in to add yours."}
             </p>
           </div>
           {session ? (
-            <Button variant="default" size="lg" onClick={() => setIsDialogOpen(true)}>
-              <Plus className="w-5 h-5 mr-2" />
+            <Button size="lg" onClick={openPlantDialog} className="bg-secondary font-bold hover:bg-brand-green-dark">
+              <Plus className="w-5 h-5" />
               Plant Tree
             </Button>
           ) : (
-            <Button variant="default" size="lg" onClick={() => navigate("/auth")}>
-              Sign In to Plant
+            <Button size="lg" onClick={() => navigate("/auth")} className="bg-primary font-bold">
+              <MapPin className="w-5 h-5" /> Sign in to plant
             </Button>
           )}
         </div>
 
-        <Card className="overflow-hidden">
-          <div ref={mapContainerRef} className="h-[600px] w-full" />
+        <Card className="overflow-hidden rounded-2xl shadow-card">
+          <div ref={mapContainerRef} className="h-[70vh] min-h-[420px] w-full" />
         </Card>
 
         <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
-          <DialogContent className="z-[9999]">
+          <DialogContent className="z-[9999] max-h-[90vh] overflow-y-auto">
             <DialogHeader>
               <DialogTitle>Plant a New Tree 🌳</DialogTitle>
               <DialogDescription>
@@ -466,10 +490,57 @@ const MapPage = () => {
             </DialogHeader>
             <div className="space-y-4">
               <div className="space-y-2">
-                <Label>Location</Label>
-                <div className="text-sm text-muted-foreground">
-                  Lat: {newTree.latitude.toFixed(6)}, Lng: {newTree.longitude.toFixed(6)}
+                <Label>Location *</Label>
+                <p className="text-xs text-muted-foreground">
+                  {hasPin
+                    ? "Taken from your pin. You can also type exact coordinates."
+                    : "Tap the map to drop a pin, or type the coordinates. You can paste \"0.3497, 32.6300\" from Google Maps into either box."}
+                </p>
+                <div className="grid grid-cols-2 gap-2">
+                  <div className="space-y-1">
+                    <Label htmlFor="latitude" className="text-xs text-muted-foreground">Latitude</Label>
+                    <Input
+                      id="latitude"
+                      inputMode="decimal"
+                      placeholder="0.349700"
+                      value={coordText.lat}
+                      onChange={(e) => handleCoordChange("lat", e.target.value)}
+                      aria-invalid={!!coordText.lat && !coordsValid}
+                    />
+                  </div>
+                  <div className="space-y-1">
+                    <Label htmlFor="longitude" className="text-xs text-muted-foreground">Longitude</Label>
+                    <Input
+                      id="longitude"
+                      inputMode="decimal"
+                      placeholder="32.630000"
+                      value={coordText.lng}
+                      onChange={(e) => handleCoordChange("lng", e.target.value)}
+                      aria-invalid={!!coordText.lng && !coordsValid}
+                    />
+                  </div>
                 </div>
+                {coordsValid && !isInUganda(newTree.latitude, newTree.longitude) && (
+                  <p className="text-xs font-semibold text-amber-700">
+                    This point is outside Uganda. Check that latitude comes first, then longitude.
+                  </p>
+                )}
+                {!coordsValid && coordText.lat && coordText.lng && (
+                  <p className="text-xs text-destructive">
+                    Enter a latitude between -90 and 90 and a longitude between -180 and 180.
+                  </p>
+                )}
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="planted_date">Date planted *</Label>
+                <Input
+                  id="planted_date"
+                  type="date"
+                  min={MIN_PLANTED_DATE}
+                  max={todayISO()}
+                  value={newTree.planted_date}
+                  onChange={(e) => setNewTree({ ...newTree, planted_date: e.target.value })}
+                />
               </div>
               <div className="space-y-2">
                 <Label htmlFor="species">Tree Species (Optional)</Label>
@@ -513,6 +584,7 @@ const MapPage = () => {
                   id="tree_count"
                   type="number"
                   min="1"
+                  max="10000"
                   placeholder="e.g., 15"
                   value={newTree.tree_count}
                   onChange={(e) => setNewTree({ ...newTree, tree_count: parseInt(e.target.value) || 1 })}
@@ -534,7 +606,7 @@ const MapPage = () => {
                     {uploadedImages.map((file, index) => (
                       <div key={index} className="relative">
                         <img
-                          src={URL.createObjectURL(file)}
+                          src={previewUrls[index]}
                           alt={`Preview ${index + 1}`}
                           className="w-20 h-20 object-cover rounded border"
                         />
@@ -550,9 +622,9 @@ const MapPage = () => {
                 )}
               </div>
               
-              <Button onClick={handleAddTree} className="w-full" size="lg">
-                <Leaf className="w-4 h-4 mr-2" />
-                Plant Tree
+              <Button onClick={handleAddTree} className="w-full bg-secondary font-bold hover:bg-brand-green-dark" size="lg" disabled={saving}>
+                {saving ? <Loader2 className="w-4 h-4 animate-spin" /> : <Leaf className="w-4 h-4" />}
+                {saving ? "Planting…" : "Plant Tree"}
               </Button>
             </div>
           </DialogContent>
