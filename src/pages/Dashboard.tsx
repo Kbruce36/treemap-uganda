@@ -7,7 +7,8 @@ import { Badge } from "@/components/ui/badge";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Separator } from "@/components/ui/separator";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
-import { sendMessage, TreeContext } from "@/services/geminiService";
+import { greenBotHistoryKey, sendMessage, TreeContext } from "@/services/geminiService";
+import { useSession } from "@/hooks/use-session";
 import { useStatistics } from "@/hooks/use-statistics";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
@@ -30,11 +31,11 @@ interface ChatMessage {
   timestamp: Date;
 }
 
-const CHAT_HISTORY_STORAGE_KEY = "greanbot_chat_history_v1";
+const MAX_STORED_MESSAGES = 50;
 const INITIAL_CHAT_MESSAGE: ChatMessage = {
   role: "model",
   parts:
-    "Hello! 🌿 I'm GreenBot, the AI assistant for UNAU Kyambogo. Ask me anything about trees, planting tips, or how to use this platform!",
+    "Hello! 🌍 I'm GreenBot, UNAU Kyambogo's assistant for the Sustainable Development Goals. Ask me about any of the 17 Global Goals, how students can act on them, the chapter's projects, or planting and caring for trees.",
   timestamp: new Date(),
 };
 
@@ -54,18 +55,22 @@ interface NewTreePayload {
 const MAX_NOTIFICATIONS = 20;
 
 const SUGGESTED_QUESTIONS = [
-  "What tree species grow best in Uganda?",
-  "How many trees have been planted so far?",
-  "What are the benefits of planting Mvule trees?",
-  "How do I care for a newly planted Mango tree?",
-  "Which species are best for shade on campus?",
+  "What are the 17 Sustainable Development Goals?",
+  "How can students at Kyambogo help achieve SDG 3?",
+  "How does tree planting support SDG 13 and SDG 15?",
+  "What is Uganda doing about SDG 5: Gender Equality?",
+  "What projects has UNAU Kyambogo run this year?",
 ];
 
 const Dashboard = () => {
   const navigate = useNavigate();
   const { totalTrees, activePlanters, treeSpecies, loading } = useStatistics();
+  const { session, loading: sessionLoading } = useSession();
+  const userId = session?.user.id ?? null;
 
   const [messages, setMessages] = useState<ChatMessage[]>([INITIAL_CHAT_MESSAGE]);
+  // Which account the messages in state belong to; history is only saved for its owner.
+  const [historyOwner, setHistoryOwner] = useState<string | null>(null);
   const [input, setInput] = useState("");
   const [isTyping, setIsTyping] = useState(false);
   const [notifications, setNotifications] = useState<Notification[]>([]);
@@ -83,37 +88,36 @@ const Dashboard = () => {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
   }, [messages]);
 
+  // Load the signed-in account's own history (and nothing when signed out).
   useEffect(() => {
-    try {
-      const raw = localStorage.getItem(CHAT_HISTORY_STORAGE_KEY);
-      if (!raw) return;
-
-      const parsed = JSON.parse(raw) as Array<{ role: "user" | "model"; parts: string; timestamp: string }>;
-      if (!Array.isArray(parsed) || parsed.length === 0) return;
-
-      const hydrated: ChatMessage[] = parsed
-        .filter((item) => item?.role && typeof item.parts === "string")
-        .map((item) => ({
-          role: item.role,
-          parts: item.parts,
-          timestamp: new Date(item.timestamp),
-        }));
-
-      if (hydrated.length > 0) {
-        setMessages(hydrated);
+    if (sessionLoading) return;
+    let restored: ChatMessage[] = [INITIAL_CHAT_MESSAGE];
+    if (userId) {
+      try {
+        const raw = localStorage.getItem(greenBotHistoryKey(userId));
+        const parsed = raw
+          ? (JSON.parse(raw) as Array<{ role: "user" | "model"; parts: string; timestamp: string }>)
+          : [];
+        const hydrated: ChatMessage[] = (Array.isArray(parsed) ? parsed : [])
+          .filter((item) => item?.role && typeof item.parts === "string")
+          .map((item) => ({ role: item.role, parts: item.parts, timestamp: new Date(item.timestamp) }));
+        if (hydrated.length > 0) restored = hydrated;
+      } catch (error) {
+        console.warn("[Dashboard] Failed to load chat history:", error);
       }
-    } catch (error) {
-      console.warn("[Dashboard] Failed to load chat history from localStorage:", error);
     }
-  }, []);
+    setMessages(restored);
+    setHistoryOwner(userId);
+  }, [userId, sessionLoading]);
 
   useEffect(() => {
+    if (!userId || historyOwner !== userId) return;
     try {
-      localStorage.setItem(CHAT_HISTORY_STORAGE_KEY, JSON.stringify(messages));
+      localStorage.setItem(greenBotHistoryKey(userId), JSON.stringify(messages.slice(-MAX_STORED_MESSAGES)));
     } catch (error) {
-      console.warn("[Dashboard] Failed to save chat history to localStorage:", error);
+      console.warn("[Dashboard] Failed to save chat history:", error);
     }
-  }, [messages]);
+  }, [messages, userId, historyOwner]);
 
   // Seed initial notifications and subscribe to real-time tree events
   useEffect(() => {
@@ -226,6 +230,10 @@ const Dashboard = () => {
   const handleSend = async (messageText?: string) => {
     const text = (messageText ?? input).trim();
     if (!text || isTyping) return;
+    if (!session) {
+      navigate("/auth");
+      return;
+    }
 
     const userMessage: ChatMessage = {
       role: "user",
@@ -342,7 +350,7 @@ const Dashboard = () => {
                 </div>
                 <div>
                   <CardTitle className="text-lg">GreenBot AI Assistant</CardTitle>
-                  <CardDescription>Powered by Google Gemini</CardDescription>
+                  <CardDescription>Your guide to the Sustainable Development Goals</CardDescription>
                 </div>
               </div>
             </CardHeader>
@@ -428,11 +436,22 @@ const Dashboard = () => {
               </div>
 
               {/* Input */}
+              {!session && !sessionLoading ? (
+                <div className="flex flex-col items-center gap-3 rounded-xl bg-muted/60 p-4 text-center sm:flex-row sm:text-left">
+                  <p className="flex-1 text-sm text-muted-foreground">
+                    Sign in to chat with GreenBot. Your conversation stays private to your account on this device.
+                  </p>
+                  <Button onClick={() => navigate("/auth")} className="shrink-0 bg-primary font-bold">
+                    Sign in to chat
+                  </Button>
+                </div>
+              ) : (
               <div className="flex gap-2">
                 <Input
                   value={input}
                   onChange={(e) => setInput(e.target.value)}
-                  placeholder="Ask GreenBot anything..."
+                  maxLength={2000}
+                  placeholder="Ask about the Sustainable Development Goals..."
                   onKeyDown={(e) => {
                     if (e.key === "Enter" && !e.shiftKey) {
                       e.preventDefault();
@@ -455,6 +474,7 @@ const Dashboard = () => {
                   )}
                 </Button>
               </div>
+              )}
             </CardContent>
           </Card>
 

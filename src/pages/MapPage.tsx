@@ -13,10 +13,11 @@ import { toast } from "sonner";
 import { Layout } from "@/components/Layout";
 import L from "leaflet";
 import "leaflet/dist/leaflet.css";
-import { Plus, Leaf, Loader2, MapPin } from "lucide-react";
+import { Plus, Leaf, Loader2, LocateFixed, MapPin } from "lucide-react";
 import { TREE_SPECIES } from "@/data/treeSpecies";
 import { requestTreeCareAdvice } from "@/services/geminiService";
 import { downscaleImage } from "@/lib/media";
+import { addBaseLayers } from "@/lib/map-tiles";
 import { KYAMBOGO_CENTER } from "@/components/site/TreeMapPreview";
 import {
   MIN_PLANTED_DATE,
@@ -64,6 +65,9 @@ const MapPage = () => {
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [saving, setSaving] = useState(false);
   const [hasPin, setHasPin] = useState(false);
+  const [locating, setLocating] = useState(false);
+  // GPS accuracy in metres when the pin came from "Use my location".
+  const [accuracy, setAccuracy] = useState<number | null>(null);
   const [selectedImage, setSelectedImage] = useState<string | null>(null);
   const emptyTree = () => ({
     species: "",
@@ -120,12 +124,7 @@ const MapPage = () => {
     const initialZoom = focusLat && focusLng ? 18 : 16;
 
     const map = L.map(mapContainerRef.current).setView([initialLat, initialLng], initialZoom);
-    // Keep the OpenStreetMap credit the tile licence requires, without the Leaflet logo.
-    map.attributionControl.setPrefix(false);
-
-    L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png", {
-      attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors',
-    }).addTo(map);
+    addBaseLayers(map, { switcher: true });
 
     // Ensure proper sizing after mount and on resize
     const handleResize = () => map.invalidateSize();
@@ -207,6 +206,7 @@ const MapPage = () => {
         return;
       }
       placePin(e.latlng);
+      setAccuracy(null);
     };
 
     map.on('click', handleMapClick);
@@ -215,8 +215,42 @@ const MapPage = () => {
     };
   }, [placePin]);
 
+  /** Drops the pin at the device's GPS position, for people who don't know their coordinates. */
+  const locateMe = () => {
+    if (!sessionRef.current) {
+      toast.info("Please sign in to plant trees");
+      return;
+    }
+    if (!("geolocation" in navigator)) {
+      toast.error("This browser can't share your location. Tap the map where you planted instead.");
+      return;
+    }
+
+    setLocating(true);
+    navigator.geolocation.getCurrentPosition(
+      (position) => {
+        setLocating(false);
+        placePin([position.coords.latitude, position.coords.longitude], { pan: true });
+        setAccuracy(Math.round(position.coords.accuracy));
+        toast.success("Pin placed at your location. Drag it if it's slightly off.");
+      },
+      (error) => {
+        setLocating(false);
+        toast.error(
+          error.code === error.PERMISSION_DENIED
+            ? "Location access was blocked. Allow location for this site in your browser settings, or tap the map instead."
+            : error.code === error.TIMEOUT
+              ? "Finding your location took too long. Try again outside, or tap the map instead."
+              : "Couldn't get your location. Check that location (GPS) is on, or tap the map instead."
+        );
+      },
+      { enableHighAccuracy: true, timeout: 20000, maximumAge: 0 }
+    );
+  };
+
   /** Typed or pasted coordinates. A pasted "lat, lng" pair fills both boxes. */
   const handleCoordChange = (field: "lat" | "lng", value: string) => {
+    setAccuracy(null);
     const pair = parseCoordinatePair(value);
     if (pair) {
       placePin([pair.lat, pair.lng], { pan: true });
@@ -439,6 +473,7 @@ const MapPage = () => {
       setIsDialogOpen(false);
       setNewTree(emptyTree());
       setCoordText({ lat: "", lng: "" });
+      setAccuracy(null);
       setUploadedImages([]);
       fetchTrees();
     } catch (error) {
@@ -465,10 +500,16 @@ const MapPage = () => {
             </p>
           </div>
           {session ? (
-            <Button size="lg" onClick={openPlantDialog} className="bg-secondary font-bold hover:bg-brand-green-dark">
-              <Plus className="w-5 h-5" />
-              Plant Tree
-            </Button>
+            <div className="flex flex-col gap-2 sm:flex-row">
+              <Button size="lg" variant="outline" onClick={locateMe} disabled={locating} className="border-primary/30 font-bold text-primary">
+                {locating ? <Loader2 className="w-5 h-5 animate-spin" /> : <LocateFixed className="w-5 h-5" />}
+                {locating ? "Finding you…" : "Use my location"}
+              </Button>
+              <Button size="lg" onClick={openPlantDialog} className="bg-secondary font-bold hover:bg-brand-green-dark">
+                <Plus className="w-5 h-5" />
+                Plant Tree
+              </Button>
+            </div>
           ) : (
             <Button size="lg" onClick={() => navigate("/auth")} className="bg-primary font-bold">
               <MapPin className="w-5 h-5" /> Sign in to plant
@@ -491,10 +532,27 @@ const MapPage = () => {
             <div className="space-y-4">
               <div className="space-y-2">
                 <Label>Location *</Label>
+                <Button
+                  type="button"
+                  variant="outline"
+                  onClick={locateMe}
+                  disabled={locating}
+                  className="w-full border-secondary/40 font-bold text-brand-green-dark hover:bg-secondary/10"
+                >
+                  {locating ? <Loader2 className="w-4 h-4 animate-spin" /> : <LocateFixed className="w-4 h-4" />}
+                  {locating ? "Finding your location…" : "Use my current location"}
+                </Button>
+                {accuracy !== null && (
+                  <p className={`text-xs font-semibold ${accuracy > 50 ? "text-amber-700" : "text-brand-green-dark"}`}>
+                    {accuracy > 50
+                      ? `Location is only accurate to about ${accuracy} m. Close this form and drag the pin to the exact spot, or try again outside.`
+                      : `Located to within about ${accuracy} m.`}
+                  </p>
+                )}
                 <p className="text-xs text-muted-foreground">
                   {hasPin
-                    ? "Taken from your pin. You can also type exact coordinates."
-                    : "Tap the map to drop a pin, or type the coordinates. You can paste \"0.3497, 32.6300\" from Google Maps into either box."}
+                    ? "Or adjust it: drag the pin on the map, or type exact coordinates below."
+                    : "Or tap the map to drop a pin, or type the coordinates. You can paste \"0.3497, 32.6300\" from Google Maps into either box."}
                 </p>
                 <div className="grid grid-cols-2 gap-2">
                   <div className="space-y-1">

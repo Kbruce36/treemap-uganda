@@ -17,6 +17,27 @@ export interface TreeCareAdvice {
   maintenanceTips: string[];
 }
 
+// Chat history lives only in this browser, one entry per signed-in account, so
+// people sharing a device never see each other's conversations.
+const HISTORY_PREFIX = "greenbot_chat_v2_";
+const LEGACY_HISTORY_KEYS = ["greanbot_chat_history_v1"];
+
+export const greenBotHistoryKey = (userId: string) => `${HISTORY_PREFIX}${userId}`;
+
+/** Removes every GreenBot conversation stored in this browser (called on sign-out). */
+export function clearGreenBotHistory() {
+  try {
+    for (let i = localStorage.length - 1; i >= 0; i--) {
+      const key = localStorage.key(i);
+      if (key && (key.startsWith(HISTORY_PREFIX) || LEGACY_HISTORY_KEYS.includes(key))) {
+        localStorage.removeItem(key);
+      }
+    }
+  } catch {
+    // Storage unavailable (private mode etc.): nothing to clear.
+  }
+}
+
 async function invokeGreenBot<T>(body: Record<string, unknown>): Promise<T> {
   const { data, error } = await supabase.functions.invoke("greenbot", { body });
   if (error) {
