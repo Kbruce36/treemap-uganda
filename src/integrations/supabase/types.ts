@@ -138,6 +138,7 @@ export type Database = {
           is_published: boolean
           location: string | null
           partners: string | null
+          recognition: Json
           sdgs: number[]
           slug: string
           summary: string
@@ -159,6 +160,7 @@ export type Database = {
           is_published?: boolean
           location?: string | null
           partners?: string | null
+          recognition?: Json
           sdgs?: number[]
           slug: string
           summary?: string
@@ -180,6 +182,7 @@ export type Database = {
           is_published?: boolean
           location?: string | null
           partners?: string | null
+          recognition?: Json
           sdgs?: number[]
           slug?: string
           summary?: string

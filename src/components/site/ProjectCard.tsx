@@ -1,9 +1,9 @@
 import { Link } from "react-router-dom";
-import { ArrowUpRight, CalendarDays, MapPin } from "lucide-react";
+import { ArrowUpRight, Award, CalendarDays, MapPin } from "lucide-react";
 import { format } from "date-fns";
 import { cn } from "@/lib/utils";
 import { getSdg } from "@/data/sdgs";
-import type { Project } from "@/hooks/use-site";
+import { parseRecognition, type Project } from "@/hooks/use-site";
 import { SdgBadges } from "./Sdg";
 
 export const formatEventDate = (date: string | null) =>
@@ -50,11 +50,22 @@ export const ProjectCard = ({ project, className }: { project: Project; classNam
       <span className="absolute left-3 top-3 rounded-full bg-white/95 px-3 py-1 font-display text-[11px] font-bold uppercase tracking-wider text-primary shadow">
         {project.category}
       </span>
-      {!project.is_published && (
+      {!project.is_published ? (
         <span className="absolute right-3 top-3 rounded-full bg-brand-gold px-3 py-1 text-[11px] font-bold text-primary">
           Draft
         </span>
-      )}
+      ) : parseRecognition(project.recognition).length > 0 ? (
+        <span
+          className="absolute right-3 top-3 inline-flex items-center gap-1 rounded-full bg-brand-gold px-3 py-1 font-display text-[11px] font-bold uppercase tracking-wider text-primary shadow"
+          title="This project earned recognition"
+        >
+          <Award className="h-3.5 w-3.5" /> Recognised
+        </span>
+      ) : !project.event_date ? (
+        <span className="absolute right-3 top-3 inline-flex items-center gap-1.5 rounded-full bg-secondary px-3 py-1 font-display text-[11px] font-bold uppercase tracking-wider text-white shadow">
+          <span className="h-1.5 w-1.5 animate-pulse rounded-full bg-white" /> Ongoing
+        </span>
+      ) : null}
     </div>
     <div className="flex flex-1 flex-col p-5">
       <div className="flex flex-wrap items-center gap-x-4 gap-y-1 text-xs text-muted-foreground">

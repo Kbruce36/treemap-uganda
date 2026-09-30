@@ -36,6 +36,7 @@ export const PILLARS: Pillar[] = [
 
 export const PROJECT_CATEGORIES = [
   "Environment",
+  "Health & well-being",
   "Community outreach",
   "Conferences & dialogue",
   "Schools & mentorship",

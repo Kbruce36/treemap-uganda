@@ -23,6 +23,24 @@ export const parseImpact = (impact: Project["impact"]): ImpactStat[] =>
       ).map((s) => ({ value: String(s.value), label: String(s.label) }))
     : [];
 
+/** An award or certificate a project earned. */
+export interface RecognitionItem {
+  title: string;
+  issuer: string;
+  image: string | null;
+}
+
+export const parseRecognition = (value: unknown): RecognitionItem[] =>
+  Array.isArray(value)
+    ? value
+        .filter((r): r is Record<string, unknown> => !!r && typeof r === "object" && typeof (r as { title?: unknown }).title === "string")
+        .map((r) => ({
+          title: String(r.title),
+          issuer: typeof r.issuer === "string" ? r.issuer : "",
+          image: typeof r.image === "string" && r.image ? r.image : null,
+        }))
+    : [];
+
 export const applicationsAreOpen = (settings?: SiteSettings | null) =>
   !!settings?.applications_open &&
   (!settings.applications_deadline || new Date(settings.applications_deadline) > new Date());

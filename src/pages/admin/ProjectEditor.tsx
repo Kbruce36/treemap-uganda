@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 import { Link, useNavigate, useParams } from "react-router-dom";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { ArrowLeft, ExternalLink, ImagePlus, Loader2, Plus, Save, Trash2, X } from "lucide-react";
+import { ArrowLeft, Award, ExternalLink, ImagePlus, Loader2, Plus, Save, Trash2, X } from "lucide-react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -11,7 +11,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { supabase } from "@/integrations/supabase/client";
 import type { Json } from "@/integrations/supabase/types";
-import { parseImpact, type ImpactStat, type Project } from "@/hooks/use-site";
+import { parseImpact, parseRecognition, type ImpactStat, type Project, type RecognitionItem } from "@/hooks/use-site";
 import { uploadSiteMedia } from "@/lib/media";
 import { PROJECT_CATEGORIES } from "@/data/chapter";
 import { SDGS } from "@/data/sdgs";
@@ -29,6 +29,7 @@ type Draft = {
   partners: string;
   sdgs: number[];
   impact: ImpactStat[];
+  recognition: RecognitionItem[];
   cover_image: string | null;
   gallery: string[];
   cta_label: string;
@@ -48,6 +49,7 @@ const EMPTY: Draft = {
   partners: "",
   sdgs: [],
   impact: [],
+  recognition: [],
   cover_image: null,
   gallery: [],
   cta_label: "",
@@ -76,6 +78,7 @@ const fromProject = (p: Project): Draft => ({
   partners: p.partners ?? "",
   sdgs: p.sdgs,
   impact: parseImpact(p.impact),
+  recognition: parseRecognition(p.recognition),
   cover_image: p.cover_image,
   gallery: p.gallery,
   cta_label: p.cta_label ?? "",
@@ -134,6 +137,9 @@ const ProjectEditor = () => {
         impact: draft.impact
           .filter((s) => s.value.trim() && s.label.trim())
           .map((s) => ({ value: s.value.trim(), label: s.label.trim() })) as Json,
+        recognition: draft.recognition
+          .filter((r) => r.title.trim())
+          .map((r) => ({ title: r.title.trim(), issuer: r.issuer.trim(), image: r.image })) as unknown as Json,
         cover_image: draft.cover_image,
         gallery: draft.gallery,
         cta_label: draft.cta_label.trim() || null,
@@ -170,6 +176,22 @@ const ProjectEditor = () => {
       navigate("/admin/projects");
     },
   });
+
+  const uploadRecognitionImage = async (index: number, file?: File) => {
+    if (!file) return;
+    setUploading(true);
+    try {
+      const url = await uploadSiteMedia(file, "projects");
+      setDraft((d) => ({ ...d, recognition: d.recognition.map((r, i) => (i === index ? { ...r, image: url } : r)) }));
+    } catch {
+      toast.error("Upload failed. Use a JPG, PNG or WebP image under 5 MB.");
+    } finally {
+      setUploading(false);
+    }
+  };
+
+  const setRecognition = (index: number, patch: Partial<RecognitionItem>) =>
+    setDraft((d) => ({ ...d, recognition: d.recognition.map((r, i) => (i === index ? { ...r, ...patch } : r)) }));
 
   const handleUpload = async (files: FileList | null, target: "cover" | "gallery") => {
     if (!files?.length) return;
@@ -305,6 +327,49 @@ const ProjectEditor = () => {
                 </label>
               </div>
             </div>
+          </Section>
+
+          <Section title="Recognition (awards & certificates)">
+            <p className="-mt-2 text-sm text-muted-foreground">
+              Shown in a highlighted "Recognition" block on the project page, with a "Recognised" badge on its card.
+            </p>
+            {draft.recognition.map((r, i) => (
+              <div key={i} className="flex flex-col gap-3 rounded-xl border p-3 sm:flex-row">
+                <div className="shrink-0">
+                  {r.image ? (
+                    <img src={r.image} alt="" className="h-24 w-32 rounded-lg object-cover" />
+                  ) : (
+                    <div className="flex h-24 w-32 items-center justify-center rounded-lg bg-muted text-muted-foreground">
+                      <Award className="h-8 w-8" />
+                    </div>
+                  )}
+                  <label className="mt-2 block cursor-pointer text-center text-xs font-semibold text-primary hover:underline">
+                    <input
+                      type="file"
+                      accept="image/jpeg,image/png,image/webp"
+                      className="sr-only"
+                      onChange={(e) => uploadRecognitionImage(i, e.target.files?.[0])}
+                    />
+                    {r.image ? "Replace image" : "Upload certificate"}
+                  </label>
+                </div>
+                <div className="flex-1 space-y-2">
+                  <Input placeholder="e.g. Certificate of Participation" value={r.title} onChange={(e) => setRecognition(i, { title: e.target.value })} />
+                  <Input placeholder="Awarded by, e.g. GHERI-UG and NEMA" value={r.issuer} onChange={(e) => setRecognition(i, { issuer: e.target.value })} />
+                </div>
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  onClick={() => set("recognition", draft.recognition.filter((_, j) => j !== i))}
+                  aria-label="Remove recognition"
+                >
+                  <X className="h-4 w-4" />
+                </Button>
+              </div>
+            ))}
+            <Button variant="outline" size="sm" onClick={() => set("recognition", [...draft.recognition, { title: "", issuer: "", image: null }])}>
+              <Plus className="h-4 w-4" /> Add award or certificate
+            </Button>
           </Section>
 
           <Section title="Impact numbers">

@@ -2,14 +2,14 @@ import { useState } from "react";
 import { Link, useParams } from "react-router-dom";
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
-import { ArrowLeft, ArrowRight, CalendarDays, Handshake, MapPin } from "lucide-react";
+import { ArrowLeft, ArrowRight, Award, CalendarDays, Handshake, MapPin } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogTitle } from "@/components/ui/dialog";
 import { Layout } from "@/components/Layout";
 import { ProjectCard, ProjectCover, formatEventDate } from "@/components/site/ProjectCard";
 import { SdgTile } from "@/components/site/Sdg";
 import { getSdg } from "@/data/sdgs";
-import { parseImpact, useProject, useProjects } from "@/hooks/use-site";
+import { parseImpact, parseRecognition, useProject, useProjects } from "@/hooks/use-site";
 import NotFound from "./NotFound";
 
 import { projectPageMeta } from "@/lib/seo-core";
@@ -37,6 +37,7 @@ const ProjectDetail = () => {
   if (!project) return <NotFound />;
 
   const impact = parseImpact(project.impact);
+  const recognition = parseRecognition(project.recognition);
   const images = [project.cover_image, ...project.gallery].filter((x): x is string => !!x);
   const more = (all ?? [])
     .filter((p) => p.is_published && p.id !== project.id)
@@ -148,6 +149,52 @@ const ProjectDetail = () => {
           )}
         </aside>
       </section>
+
+      {recognition.length > 0 && (
+        <section className="container pb-14">
+          <div className="overflow-hidden rounded-3xl bg-brand-navy-deep text-white shadow-glow">
+            <div className="h-1.5 bg-brand-gold" />
+            <div className="p-6 md:p-10">
+              <p className="inline-flex items-center gap-2 font-display text-xs font-bold uppercase tracking-[0.2em] text-brand-gold">
+                <Award className="h-4 w-4" /> Recognition
+              </p>
+              <div className="mt-6 grid gap-6 md:grid-cols-2">
+                {recognition.map((r) => (
+                  <div key={r.title + r.issuer} className="flex flex-col gap-5 sm:flex-row sm:items-center">
+                    {r.image ? (
+                      <button
+                        onClick={() => setLightbox(r.image)}
+                        className="group shrink-0 overflow-hidden rounded-xl bg-white p-1.5 shadow-lg ring-2 ring-brand-gold/60 transition hover:ring-brand-gold"
+                        aria-label={`View ${r.title}`}
+                      >
+                        <img
+                          src={r.image}
+                          alt={`${r.title} awarded to UNAU Kyambogo`}
+                          loading="lazy"
+                          className="h-40 w-full rounded-lg object-cover transition-transform duration-500 group-hover:scale-105 sm:w-56"
+                        />
+                      </button>
+                    ) : (
+                      <span className="flex h-16 w-16 shrink-0 items-center justify-center rounded-2xl bg-brand-gold text-primary">
+                        <Award className="h-8 w-8" />
+                      </span>
+                    )}
+                    <div>
+                      <p className="font-display text-2xl font-black leading-tight">{r.title}</p>
+                      {r.issuer && <p className="mt-2 text-sm text-white/75">{r.issuer}</p>}
+                      {r.image && (
+                        <button onClick={() => setLightbox(r.image)} className="mt-3 text-sm font-bold text-brand-gold hover:underline">
+                          View certificate →
+                        </button>
+                      )}
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+          </div>
+        </section>
+      )}
 
       {images.length > 1 && (
         <section className="container pb-14">
