@@ -75,7 +75,7 @@ export const Layout = ({ children }: { children: React.ReactNode }) => {
         >
           <div className="container flex items-center justify-center gap-2 py-2 text-center text-sm font-semibold">
             <span className="font-display font-extrabold uppercase tracking-wide">{settings.applications_title}</span>
-            <span className="hidden sm:inline">applications are open</span>
+            {!/\bopen\b/i.test(settings.applications_title) && <span className="hidden sm:inline">applications are open</span>}
             {settings.applications_deadline && (
               <span className="hidden md:inline">
                 · deadline {format(new Date(settings.applications_deadline), "d MMM yyyy")}

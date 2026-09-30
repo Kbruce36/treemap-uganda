@@ -41,6 +41,12 @@ export const parseRecognition = (value: unknown): RecognitionItem[] =>
         }))
     : [];
 
+/** "Cabinet 2026/27 · Applications open", without repeating "open" if the admin's title already says it. */
+export const applicationsCallLabel = (title?: string | null) => {
+  const t = (title ?? "").trim() || "Cabinet";
+  return /\bopen\b/i.test(t) ? t : `${t} · Applications open`;
+};
+
 export const applicationsAreOpen = (settings?: SiteSettings | null) =>
   !!settings?.applications_open &&
   (!settings.applications_deadline || new Date(settings.applications_deadline) > new Date());

@@ -16,7 +16,8 @@
 [[headers]]
   for = "/images/*"
   [headers.values]
-    Cache-Control = "public, max-age=604800"
+    # Short: photos are sometimes replaced under the same name.
+    Cache-Control = "public, max-age=3600, must-revalidate"
 
 [[headers]]
   for = "/*"

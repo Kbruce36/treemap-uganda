@@ -4,7 +4,7 @@ import { ArrowRight, Camera, Leaf, Loader2, MapPin, Sprout, Trophy, Users } from
 import { Button } from "@/components/ui/button";
 import { Layout } from "@/components/Layout";
 import { useStatistics } from "@/hooks/use-statistics";
-import { applicationsAreOpen, useProjects, useSiteSettings, useChapterContact } from "@/hooks/use-site";
+import { applicationsAreOpen, applicationsCallLabel, useProjects, useSiteSettings, useChapterContact } from "@/hooks/use-site";
 import { CHAPTER, MEMBER_BENEFITS, PILLARS } from "@/data/chapter";
 import { CHAPTER_SDGS, getSdg } from "@/data/sdgs";
 import { SectionHeading } from "@/components/site/Brand";
@@ -308,7 +308,7 @@ const Index = () => {
           <div className="relative grid gap-10 p-8 md:p-14 lg:grid-cols-[1.3fr_1fr] lg:items-center">
             {appsOpen && settings ? (
               <div>
-                <p className="eyebrow">{settings.applications_title} · Applications open</p>
+                <p className="eyebrow">{applicationsCallLabel(settings.applications_title)}</p>
                 <h2 className="mt-3 font-display text-5xl font-black leading-[0.95] text-primary md:text-7xl">
                   Your turn
                   <br />

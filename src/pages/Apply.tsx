@@ -13,7 +13,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Layout } from "@/components/Layout";
 import { PageHero } from "@/components/site/Brand";
 import { supabase } from "@/integrations/supabase/client";
-import { applicationsAreOpen, usePositions, useSiteSettings, useChapterContact } from "@/hooks/use-site";
+import { applicationsAreOpen, applicationsCallLabel, usePositions, useSiteSettings, useChapterContact } from "@/hooks/use-site";
 
 import { STATIC_PAGES } from "@/lib/seo-core";
 import { usePageMeta } from "@/lib/seo";
@@ -171,7 +171,7 @@ const Apply = () => {
   return (
     <Layout>
       <PageHero
-        eyebrow={`${settings?.applications_title ?? "Cabinet"} · Applications open`}
+        eyebrow={applicationsCallLabel(settings?.applications_title)}
         title={
           <>
             Your turn <span className="text-secondary">to lead.</span>
